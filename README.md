@@ -2,20 +2,18 @@
 
 A dead-simple document-camera viewer for **macOS, Windows, and Linux** — a replacement for OverCam without the complexity of OBS. It opens a USB document camera (or any video device) and shows it on screen, full-screen for a projector.
 
-> ⚠️ **Alpha:** builds and runs on all three platforms, but the live camera output hasn't been verified on real Windows/Linux hardware yet.
+**macOS is stable and tested.** Windows and Linux are currently an **alpha** — they build and run, but the live camera output hasn't been verified on real hardware yet.
 
-Download the installer for your platform from the [**Releases page**](https://github.com/emerytech/bluebird-docucam/releases) — grab the newest release.
+### macOS — stable
+Download **BlueBird-DocuCam.dmg** from the [**latest release**](https://github.com/emerytech/bluebird-docucam/releases/latest), open it, and drag **BlueBird DocuCam** onto **Applications**. Signed with a Developer ID and **notarized by Apple** — no "unidentified developer" warning. Launch it, click **Allow** on the camera prompt, plug in the doc cam, go full screen.
 
-### macOS
-Download **BlueBird-DocuCam.dmg**, open it, and drag **BlueBird DocuCam** onto **Applications**. It's signed with a Developer ID and notarized by Apple — **no "unidentified developer" warning**. Launch it, click **Allow** on the camera prompt, plug in the doc cam, go full screen.
+### Windows — alpha
+From the [**Windows/Linux alpha release**](https://github.com/emerytech/bluebird-docucam/releases/tag/v1.1.0-alpha), download **BlueBird-DocuCam-Setup-*.exe** and run it. Not code-signed yet, so Windows SmartScreen shows *"Windows protected your PC"* — click **More info → Run anyway** (a one-time step). Then allow camera access.
 
-### Windows
-Download **BlueBird-DocuCam-Setup-*.exe** and run it. The app is not yet code-signed, so Windows SmartScreen shows *"Windows protected your PC"* on first run — click **More info → Run anyway** (a one-time step). Then allow camera access when prompted.
+### Linux — alpha
+From the [**alpha release**](https://github.com/emerytech/bluebird-docucam/releases/tag/v1.1.0-alpha), download **BlueBird-DocuCam-*.AppImage** (universal — `chmod +x` and run) or **BlueBird-DocuCam-*.deb** for Debian/Ubuntu (`sudo dpkg -i`). Grant camera access when prompted.
 
-### Linux
-Download **BlueBird-DocuCam-*.AppImage** (universal — `chmod +x` it and run), or **BlueBird-DocuCam-*.deb** for Debian/Ubuntu (`sudo dpkg -i` it). Grant camera access when prompted.
-
-> **Note:** macOS runs the native Swift app (in this repo's root); Windows and Linux run an Electron build (in `electron/`) — same features, same look and feel.
+> **Note:** macOS runs the native Swift app (repo root); Windows and Linux run an Electron build (`electron/`) — same features and look.
 
 ## Features
 - Live full-window / full-screen view of the document camera
