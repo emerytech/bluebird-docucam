@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>BlueBird Doc Camera</string>
-    <key>CFBundleDisplayName</key><string>BlueBird Doc Camera</string>
-    <key>CFBundleIdentifier</key><string>com.emerytech.BlueBirdDocCamera</string>
-    <key>CFBundleExecutable</key><string>BlueBirdDocCamera</string>
+    <key>CFBundleName</key><string>BlueBird DocuCam</string>
+    <key>CFBundleDisplayName</key><string>BlueBird DocuCam</string>
+    <key>CFBundleIdentifier</key><string>com.emerytech.BlueBirdDocuCam</string>
+    <key>CFBundleExecutable</key><string>BlueBirdDocuCam</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundleVersion</key><string>1</string>
@@ -14,6 +14,6 @@
     <key>NSHighResolutionCapable</key><true/>
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.education</string>
-    <key>NSCameraUsageDescription</key><string>BlueBird Doc Camera shows your document camera on the screen.</string>
+    <key>NSCameraUsageDescription</key><string>BlueBird DocuCam shows your document camera on the screen.</string>
 </dict>
 </plist>

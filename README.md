@@ -1,4 +1,4 @@
-# BlueBird Doc Camera
+# BlueBird DocuCam
 
 A dead-simple document-camera viewer for macOS — a replacement for OverCam without the complexity of OBS. It opens a USB document camera (or any video device) and shows it on screen, full-screen for a projector.
 
@@ -7,12 +7,12 @@ A dead-simple document-camera viewer for macOS — a replacement for OverCam wit
 Paste this into Terminal — it downloads the latest release, clears the download quarantine, and drops it in Applications:
 
 ```bash
-cd /tmp && curl -L -o BBDocCam.zip https://github.com/emerytech/bluebird-doc-camera/releases/latest/download/BlueBird-Doc-Camera.zip && ditto -x -k BBDocCam.zip . && xattr -dr com.apple.quarantine "BlueBird Doc Camera.app" && rm -rf "/Applications/BlueBird Doc Camera.app" && mv "BlueBird Doc Camera.app" /Applications/ && open "/Applications/BlueBird Doc Camera.app"
+cd /tmp && curl -L -o BBDocuCam.zip https://github.com/emerytech/bluebird-docucam/releases/latest/download/BlueBird-DocuCam.zip && ditto -x -k BBDocuCam.zip . && xattr -dr com.apple.quarantine "BlueBird DocuCam.app" && rm -rf "/Applications/BlueBird DocuCam.app" && mv "BlueBird DocuCam.app" /Applications/ && open "/Applications/BlueBird DocuCam.app"
 ```
 
 On first launch it asks for **Camera** permission — click **Allow**. Then plug in the document camera and go full screen.
 
-> Prefer clicking? Download `BlueBird-Doc-Camera.zip` from the [latest release](https://github.com/emerytech/bluebird-doc-camera/releases/latest), unzip, drag to Applications. Because it's ad-hoc signed (not notarized), the first open may be blocked — either right-click → Open, or approve it under **System Settings ▸ Privacy & Security ▸ Open Anyway**. The Terminal command above skips that by clearing the quarantine flag.
+> Prefer clicking? Download `BlueBird-DocuCam.zip` from the [latest release](https://github.com/emerytech/bluebird-docucam/releases/latest), unzip, drag to Applications. Because it's ad-hoc signed (not notarized), the first open may be blocked — either right-click → Open, or approve it under **System Settings ▸ Privacy & Security ▸ Open Anyway**. The Terminal command above skips that by clearing the quarantine flag.
 
 ## Features
 - Live full-window / full-screen view of the document camera
@@ -39,13 +39,13 @@ On first launch it asks for **Camera** permission — click **Allow**. Then plug
 ```bash
 ./build.sh
 ```
-Produces `build/BlueBird Doc Camera.app` — a universal (Apple Silicon + Intel) app targeting macOS 13+, ad-hoc signed. To support older Intel Macs, lower `MIN_MACOS` in `build.sh` (e.g. `11.0` for Big Sur).
+Produces `build/BlueBird DocuCam.app` — a universal (Apple Silicon + Intel) app targeting macOS 13+, ad-hoc signed. To support older Intel Macs, lower `MIN_MACOS` in `build.sh` (e.g. `11.0` for Big Sur).
 
 ## Cut a new release
 ```bash
 ./build.sh
-ditto -c -k --sequesterRsrc --keepParent "build/BlueBird Doc Camera.app" "BlueBird-Doc-Camera.zip"
-gh release create v1.0.1 "BlueBird-Doc-Camera.zip" --title "v1.0.1" --notes "…"
+ditto -c -k --sequesterRsrc --keepParent "build/BlueBird DocuCam.app" "BlueBird-DocuCam.zip"
+gh release create v1.0.1 "BlueBird-DocuCam.zip" --title "v1.0.1" --notes "…"
 ```
 
 ## Optional: notarized (no-prompt) install

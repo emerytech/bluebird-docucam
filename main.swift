@@ -5,7 +5,7 @@ import CoreVideo
 import CoreImage
 import QuartzCore
 
-let appName = "BlueBird Doc Camera"
+let appName = "BlueBird DocuCam"
 
 // MARK: - Preview view (live video + freeze overlay, with rotation / flip / fill)
 
@@ -91,8 +91,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, AVCaptureVideoDataOutp
     private var preview: PreviewView!
 
     private let session = AVCaptureSession()
-    private let sessionQueue = DispatchQueue(label: "doccam.session")
-    private let frameQueue = DispatchQueue(label: "doccam.frames")
+    private let sessionQueue = DispatchQueue(label: "docucam.session")
+    private let frameQueue = DispatchQueue(label: "docucam.frames")
     private let videoOutput = AVCaptureVideoDataOutput()
     private var currentInput: AVCaptureDeviceInput?
 
@@ -252,11 +252,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, AVCaptureVideoDataOutp
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 DispatchQueue.main.async {
                     if granted { self.configureAndStart() }
-                    else { self.preview.showMessage("Camera access was denied.\n\nEnable it in System Settings ▸ Privacy & Security ▸ Camera, then reopen DocCam.") }
+                    else { self.preview.showMessage("Camera access was denied.\n\nEnable it in System Settings ▸ Privacy & Security ▸ Camera, then reopen \(appName).") }
                 }
             }
         default:
-            preview.showMessage("Camera access is turned off.\n\nEnable it in System Settings ▸ Privacy & Security ▸ Camera, then reopen DocCam.")
+            preview.showMessage("Camera access is turned off.\n\nEnable it in System Settings ▸ Privacy & Security ▸ Camera, then reopen \(appName).")
         }
     }
 
