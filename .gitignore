@@ -1,3 +1,5 @@
 build/
 *.zip
+*.dmg
+.env
 .DS_Store

@@ -4,15 +4,11 @@ A dead-simple document-camera viewer for macOS — a replacement for OverCam wit
 
 ## Install (classroom Mac)
 
-Paste this into Terminal — it downloads the latest release, clears the download quarantine, and drops it in Applications:
+1. Download **BlueBird-DocuCam.dmg** from the [latest release](https://github.com/emerytech/bluebird-docucam/releases/latest).
+2. Open it and drag **BlueBird DocuCam** onto the **Applications** folder.
+3. Launch it from Applications, click **Allow** on the camera prompt, plug in the doc cam, and go full screen.
 
-```bash
-cd /tmp && curl -L -o BBDocuCam.zip https://github.com/emerytech/bluebird-docucam/releases/latest/download/BlueBird-DocuCam.zip && ditto -x -k BBDocuCam.zip . && xattr -dr com.apple.quarantine "BlueBird DocuCam.app" && rm -rf "/Applications/BlueBird DocuCam.app" && mv "BlueBird DocuCam.app" /Applications/ && open "/Applications/BlueBird DocuCam.app"
-```
-
-On first launch it asks for **Camera** permission — click **Allow**. Then plug in the document camera and go full screen.
-
-> Prefer clicking? Download `BlueBird-DocuCam.zip` from the [latest release](https://github.com/emerytech/bluebird-docucam/releases/latest), unzip, drag to Applications. Because it's ad-hoc signed (not notarized), the first open may be blocked — either right-click → Open, or approve it under **System Settings ▸ Privacy & Security ▸ Open Anyway**. The Terminal command above skips that by clearing the quarantine flag.
+It's signed with a Developer ID and notarized by Apple, so it opens with **no "unidentified developer" warning** — nothing to right-click or approve.
 
 ## Features
 - Live full-window / full-screen view of the document camera
@@ -37,16 +33,15 @@ On first launch it asks for **Camera** permission — click **Allow**. Then plug
 
 ## Build from source
 ```bash
-./build.sh
+./build.sh          # universal build, ad-hoc signed (local testing)
+./build.sh --sign   # Developer ID signed + notarized + stapled → BlueBird-DocuCam.dmg (+ .zip)
 ```
-Produces `build/BlueBird DocuCam.app` — a universal (Apple Silicon + Intel) app targeting macOS 13+, ad-hoc signed. To support older Intel Macs, lower `MIN_MACOS` in `build.sh` (e.g. `11.0` for Big Sur).
+Produces a universal (Apple Silicon + Intel) app targeting macOS 13+. To support older Intel Macs, lower `MIN_MACOS` in `build.sh` (e.g. `11.0` for Big Sur).
+
+`--sign` uses the `Developer ID Application: Taylor Emery (XK6QP975ZQ)` cert and the `axe` notarytool keychain profile (shared across the team's apps). Override with `TEAM_ID` / `NOTARYTOOL_PROFILE`, or `APPLE_ID` + `APP_PASSWORD`, via env or a `.env` file beside the script.
 
 ## Cut a new release
 ```bash
-./build.sh
-ditto -c -k --sequesterRsrc --keepParent "build/BlueBird DocuCam.app" "BlueBird-DocuCam.zip"
-gh release create v1.0.1 "BlueBird-DocuCam.zip" --title "v1.0.1" --notes "…"
+./build.sh --sign
+gh release create v1.0.1 BlueBird-DocuCam.dmg BlueBird-DocuCam.zip --title "v1.0.1" --notes "…"
 ```
-
-## Optional: notarized (no-prompt) install
-For a completely frictionless install, sign with a Developer ID and notarize (Apple Developer account required); then the quarantine step isn't needed. Ad-hoc signing is fine for a school-internal tool.
