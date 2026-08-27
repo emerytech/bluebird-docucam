@@ -1,14 +1,19 @@
 # BlueBird DocuCam
 
-A dead-simple document-camera viewer for macOS — a replacement for OverCam without the complexity of OBS. It opens a USB document camera (or any video device) and shows it on screen, full-screen for a projector.
+A dead-simple document-camera viewer for **macOS, Windows, and Linux** — a replacement for OverCam without the complexity of OBS. It opens a USB document camera (or any video device) and shows it on screen, full-screen for a projector.
 
-## Install (classroom Mac)
+Download the installer for your platform from the [**latest release**](https://github.com/emerytech/bluebird-docucam/releases/latest).
 
-1. Download **BlueBird-DocuCam.dmg** from the [latest release](https://github.com/emerytech/bluebird-docucam/releases/latest).
-2. Open it and drag **BlueBird DocuCam** onto the **Applications** folder.
-3. Launch it from Applications, click **Allow** on the camera prompt, plug in the doc cam, and go full screen.
+### macOS
+Download **BlueBird-DocuCam.dmg**, open it, and drag **BlueBird DocuCam** onto **Applications**. It's signed with a Developer ID and notarized by Apple — **no "unidentified developer" warning**. Launch it, click **Allow** on the camera prompt, plug in the doc cam, go full screen.
 
-It's signed with a Developer ID and notarized by Apple, so it opens with **no "unidentified developer" warning** — nothing to right-click or approve.
+### Windows
+Download **BlueBird-DocuCam-Setup-*.exe** and run it. The app is not yet code-signed, so Windows SmartScreen shows *"Windows protected your PC"* on first run — click **More info → Run anyway** (a one-time step). Then allow camera access when prompted.
+
+### Linux
+Download **BlueBird-DocuCam-*.AppImage** (universal — `chmod +x` it and run), or **BlueBird-DocuCam-*.deb** for Debian/Ubuntu (`sudo dpkg -i` it). Grant camera access when prompted.
+
+> **Note:** macOS runs the native Swift app (in this repo's root); Windows and Linux run an Electron build (in `electron/`) — same features, same look and feel.
 
 ## Features
 - Live full-window / full-screen view of the document camera
@@ -36,17 +41,31 @@ It's signed with a Developer ID and notarized by Apple, so it opens with **no "u
 | `⌘1`–`⌘9` | Choose camera |
 | `⌘,` | Settings |
 
+## Repo layout
+- **`/` (root)** — the **native macOS** app (Swift/AppKit/AVFoundation). Best macOS experience; signed + notarized.
+- **`electron/`** — the **Windows + Linux** app (Electron). Same features and look; built by CI.
+
 ## Build from source
+
+### macOS (native)
 ```bash
 ./build.sh          # universal build, ad-hoc signed (local testing)
 ./build.sh --sign   # Developer ID signed + notarized + stapled → BlueBird-DocuCam.dmg (+ .zip)
 ```
-Produces a universal (Apple Silicon + Intel) app targeting macOS 13+. To support older Intel Macs, lower `MIN_MACOS` in `build.sh` (e.g. `11.0` for Big Sur).
+Universal (Apple Silicon + Intel), macOS 13+. Lower `MIN_MACOS` in `build.sh` for older Intel Macs. `--sign` uses the `Developer ID Application: Taylor Emery (XK6QP975ZQ)` cert and the `axe` notarytool keychain profile.
 
-`--sign` uses the `Developer ID Application: Taylor Emery (XK6QP975ZQ)` cert and the `axe` notarytool keychain profile (shared across the team's apps). Override with `TEAM_ID` / `NOTARYTOOL_PROFILE`, or `APPLE_ID` + `APP_PASSWORD`, via env or a `.env` file beside the script.
+### Windows / Linux (Electron)
+```bash
+cd electron
+npm install
+npm run dist:win     # → dist/BlueBird-DocuCam-Setup-<ver>.exe   (build on Windows)
+npm run dist:linux   # → dist/BlueBird-DocuCam-<ver>.AppImage + .deb   (build on Linux)
+npm start            # run locally for development
+```
+Windows and Linux installers are normally built by CI, not locally.
 
 ## Cut a new release
-```bash
-./build.sh --sign
-gh release create v1.0.1 BlueBird-DocuCam.dmg BlueBird-DocuCam.zip --title "v1.0.1" --notes "…"
-```
+1. **macOS:** `./build.sh --sign`, then `gh release create vX.Y.Z BlueBird-DocuCam.dmg BlueBird-DocuCam.zip --title "vX.Y.Z" --notes "…"`
+2. **Windows + Linux:** push the `vX.Y.Z` tag (or run the **Build Windows & Linux installers** Action with that tag). CI builds the `.exe`, `.AppImage`, and `.deb` and attaches them to that same release.
+
+Keep `electron/package.json` `version` in sync with the macOS app's `CFBundleShortVersionString`.

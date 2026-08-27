@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; object-src 'none'">
+  <link rel="stylesheet" href="style.css">
+  <title>Settings</title>
+</head>
+<body class="dialog settings">
+  <div class="section">CAMERA</div>
+  <div class="row">
+    <label for="camera">Default camera</label>
+    <select id="camera"></select>
+  </div>
+
+  <div class="section">STARTUP</div>
+  <div class="row">
+    <label for="login">Open at login</label>
+    <span class="switch"><input type="checkbox" id="login"><span class="slider"></span></span>
+  </div>
+  <div class="row">
+    <label for="startfs">Start in full screen</label>
+    <span class="switch"><input type="checkbox" id="startfs"><span class="slider"></span></span>
+  </div>
+
+  <div class="section">FULL SCREEN</div>
+  <div class="row">
+    <label for="hideptr">Hide the pointer when idle</label>
+    <span class="switch"><input type="checkbox" id="hideptr"><span class="slider"></span></span>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

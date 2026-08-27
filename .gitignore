@@ -1,5 +1,11 @@
-build/
+# macOS native app build output (repo root only)
+/build/
 *.zip
 *.dmg
+
+# Electron (Windows/Linux) build output
+electron/node_modules/
+electron/dist/
+
 .env
 .DS_Store

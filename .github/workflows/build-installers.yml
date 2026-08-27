@@ -1,0 +1,60 @@
+name: Build Windows & Linux installers
+
+# Builds the Electron app for Windows (.exe / NSIS) and Linux (.AppImage + .deb)
+# and attaches the installers to the matching GitHub Release.
+#
+# Flow: build + notarize the macOS .dmg locally and `gh release create <tag>` first,
+# then push the tag (or run this manually) — this job adds the Windows/Linux installers
+# to that same release.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to attach installers to (e.g. v1.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: electron
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build ${{ matrix.platform }} installer
+        run: npm run dist:${{ matrix.platform }}
+
+      - name: Upload installers to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          cd dist
+          shopt -s nullglob
+          files=(*.exe *.AppImage *.deb)
+          echo "Artifacts: ${files[*]}"
+          gh release upload "$TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY" \
+            || gh release create "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes
