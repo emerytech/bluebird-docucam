@@ -18,7 +18,11 @@ It's signed with a Developer ID and notarized by Apple, so it opens with **no "u
 - **Rotate** 90° (doc cams are often mounted sideways)
 - **Flip horizontal** to fix backwards / mirrored text, **flip vertical** for upside-down
 - **Fill vs Fit**
+- **Menu-bar icon** for quick access (freeze, full screen, reopen) — stays running when the window is closed
+- **Settings** (`⌘,`): open at login, start in full screen, hide the pointer when idle
+- **About** window with version and a one-tap **Check for Updates**
 - Remembers your camera + rotation/flip/fill between launches
+- Free — with an optional [Ko‑fi](https://ko-fi.com/ets3d) tip jar to support the developer
 
 ## Keyboard shortcuts
 | Key | Action |
@@ -30,6 +34,7 @@ It's signed with a Developer ID and notarized by Apple, so it opens with **no "u
 | `F` | Fill screen / Fit |
 | `⌃⌘F` | Full screen (or the green window button) |
 | `⌘1`–`⌘9` | Choose camera |
+| `⌘,` | Settings |
 
 ## Build from source
 ```bash

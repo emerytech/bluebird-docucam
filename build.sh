@@ -47,6 +47,7 @@ else
     cp "$BUILD/$EXECNAME-arm64" "$APP/Contents/MacOS/$EXECNAME"
 fi
 cp Info.plist "$APP/Contents/Info.plist"
+cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # ── Ad-hoc path (dev) ──────────────────────────────────────────────────────────
 if ! $SIGN; then
