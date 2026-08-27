@@ -2,7 +2,9 @@
 
 A dead-simple document-camera viewer for **macOS, Windows, and Linux** — a replacement for OverCam without the complexity of OBS. It opens a USB document camera (or any video device) and shows it on screen, full-screen for a projector.
 
-Download the installer for your platform from the [**latest release**](https://github.com/emerytech/bluebird-docucam/releases/latest).
+> ⚠️ **Alpha:** builds and runs on all three platforms, but the live camera output hasn't been verified on real Windows/Linux hardware yet.
+
+Download the installer for your platform from the [**Releases page**](https://github.com/emerytech/bluebird-docucam/releases) — grab the newest release.
 
 ### macOS
 Download **BlueBird-DocuCam.dmg**, open it, and drag **BlueBird DocuCam** onto **Applications**. It's signed with a Developer ID and notarized by Apple — **no "unidentified developer" warning**. Launch it, click **Allow** on the camera prompt, plug in the doc cam, go full screen.
