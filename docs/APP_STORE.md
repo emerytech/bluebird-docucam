@@ -17,35 +17,37 @@ is identical to the GitHub build.
 
 ---
 
-## What only you can do (Apple account)
+## Signing (✅ done — 2026-08-28)
 
-I can write and sign‑verify the code, but these live in **your** Apple Developer account / App Store
-Connect and need your login:
+The certificates, App ID, and provisioning profile are **created and verified** (a real signed `.pkg`
+builds from them). Signing material lives in `~/.config/bluebird/docucam-mas/` (private keys + `.cer`
+files + the `.provisionprofile`); the two identities are imported in the login keychain.
 
-### 1. Certificates
-Create two (Xcode ▸ Settings ▸ Accounts ▸ *Manage Certificates…* ▸ **+**, or on the portal):
-- **Apple Distribution** — signs the `.app`
-- **Mac Installer Distribution** (a.k.a. *3rd Party Mac Developer Installer*) — signs the `.pkg`
+- **`3rd Party Mac Developer Application: Taylor Emery (XK6QP975ZQ)`** — signs the `.app`
+- **`3rd Party Mac Developer Installer: Taylor Emery (XK6QP975ZQ)`** — signs the `.pkg`
+- App ID **`com.emerytech.BlueBirdDocuCam`** (explicit) registered.
+- Provisioning profile **“BlueBird DocuCam Mac App Store”** (App Store type, expires 2027-08-28).
 
-Confirm they’re present:
+> These are the **legacy Mac-specific** distribution types, chosen deliberately so they don't consume
+> an "Apple Distribution" cert slot — the EAS/Expo certs used by your other apps are untouched.
+
+Confirm any time:
 ```bash
-security find-identity -v | grep -E "Apple Distribution|Mac Developer Installer"
+security find-identity -v | grep "3rd Party Mac Developer"
 ```
-> Today this machine only has *Apple Development* + *Developer ID Application* — neither can sign a
-> Mac App Store build, which is why the `.pkg` step is blocked until these exist.
 
-### 2. App ID + provisioning profile
-- Register / confirm the App ID **`com.emerytech.BlueBirdDocuCam`** for **macOS**
-  (In‑App Purchase is enabled by default — no extra capability to toggle).
-- Create a **Mac App Store** distribution provisioning profile for that App ID, download it, and note
-  its path for `MAS_PROFILE`.
+`./build.sh --mas` already defaults to these (see below), so no env vars are needed on this Mac.
 
-### 3. App record (App Store Connect ▸ Apps ▸ **+**)
+---
+
+## What only you can do (App Store Connect)
+
+### 1. App record (App Store Connect ▸ Apps ▸ **+**)
 - **Name:** `BlueBird DocuCam`   ·   **Subtitle:** `Document Camera & PDF Scanner`
 - **Bundle ID:** `com.emerytech.BlueBirdDocuCam`   ·   **SKU:** `bluebird-docucam`
 - **Category:** Education
 
-### 4. Subscriptions — product IDs must match the code exactly
+### 2. Subscriptions — product IDs must match the code exactly
 In *Monetization ▸ Subscriptions*, make one subscription group (e.g. **“BlueBird DocuCam”**) with:
 
 | Plan | **Product ID (exact)** | Price | Intro offer |
@@ -60,7 +62,7 @@ In *Monetization ▸ Subscriptions*, make one subscription group (e.g. **“Blue
 educators who ask. They redeem in App Store ▸ *Redeem Gift Card or Code*. (Auto‑renewing subs support
 Offer Codes natively — no separate build.)
 
-### 5. Listing bits
+### 3. Listing bits
 - **Privacy label:** *Data Not Collected* (the app collects nothing; camera stays on‑device).
 - Short **privacy policy** URL (required for subscriptions).
 - **Screenshots** — lead with **iPhone/iPad as a document camera** (the headline feature), then
@@ -70,15 +72,16 @@ Offer Codes natively — no separate build.)
 
 ---
 
-## Build + upload (once the cert/profile/products exist)
+## Build + upload
 
+On this Mac (certs + profile already in place):
 ```bash
-MAS_APP_CERT="Apple Distribution: Taylor Emery (XK6QP975ZQ)" \
-MAS_INSTALLER_CERT="3rd Party Mac Developer Installer: Taylor Emery (XK6QP975ZQ)" \
-MAS_PROFILE="$HOME/Downloads/BlueBird_DocuCam_MAS.provisionprofile" \
-./build.sh --mas
-# → BlueBird-DocuCam-MAS.pkg
+./build.sh --mas          # → BlueBird-DocuCam-MAS.pkg  (real, signed, uploadable)
 ```
+`build.sh` defaults `MAS_APP_CERT` / `MAS_INSTALLER_CERT` / `MAS_PROFILE` to the assets created above;
+override any of them via env or `.env` if they ever move. The first signing of a session may pop a
+keychain prompt for the new key — click **Always Allow**. If the certs/profile aren't found, the
+`--mas` build falls back to an ad-hoc sandbox build (local verify only) instead of failing.
 
 Upload with an App Store Connect API key (yours live in `~/.appstoreconnect/` and `~/Developer/p8/`):
 ```bash
@@ -90,10 +93,9 @@ xcrun altool --upload-app -f BlueBird-DocuCam-MAS.pkg -t macos \
 > **Bump the build number every upload:** raise `CFBundleVersion` in `Info.plist`
 > (`CFBundleShortVersionString` only when the marketing version changes).
 
-Without the three `MAS_*` vars, `./build.sh --mas` still runs — it produces an **ad‑hoc, sandboxed,
-local‑verify** build (used to confirm the App Store variant compiles and sandboxes cleanly). That
-build can’t load StoreKit products (no real App Store behind it), so its paywall sits at
-“Loading plans…”. That’s expected.
+On a machine **without** the certs/profile, `./build.sh --mas` falls back to an **ad‑hoc, sandboxed,
+local‑verify** build (confirms the variant compiles and sandboxes cleanly). That build can’t load
+StoreKit products (no real App Store behind it), so its paywall sits at “Loading plans…”. Expected.
 
 ## Testing the subscription
 - **Sandbox tester** (ASC ▸ Users and Access ▸ Sandbox) signed into the Mac’s App Store, **or**
@@ -104,7 +106,10 @@ build can’t load StoreKit products (no real App Store behind it), so its paywa
 ---
 
 ## Status
-- ✅ Code: `#if APP_STORE` sandbox + StoreKit gate + paywall; Ko‑fi/self‑updater stripped. Both
-  variants compile; the `--mas` app is universal, sandboxed, and signs cleanly (ad‑hoc verified).
-- ⏳ Blocked on you: Apple Distribution + Installer certs, MAS provisioning profile, the ASC app
-  record + the two subscription products. Then the `.pkg` build + upload above is a one‑liner.
+- ✅ Code: `#if APP_STORE` sandbox + StoreKit gate + paywall; Ko‑fi/self‑updater stripped.
+- ✅ Signing: Mac App Distribution + Mac Installer Distribution certs, App ID, and Mac App Store
+  provisioning profile all created and verified end-to-end — **a real signed
+  `BlueBird-DocuCam-MAS.pkg` builds** (app signed + sandboxed + profile embedded; `.pkg` installer-signed).
+- ⏳ Remaining (App Store Connect, your login): create the app record, the two auto-renew
+  subscription products (+ 30-day trial + educator Offer Code), fill the listing/privacy/screenshots,
+  then upload the `.pkg` and submit for review.

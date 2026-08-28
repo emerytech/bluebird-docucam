@@ -62,11 +62,15 @@ cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # ── Mac App Store path ─────────────────────────────────────────────────────────
 if $MAS; then
     PKG="$HERE/BlueBird-DocuCam-MAS.pkg"
-    # Real, uploadable package — needs these from your Apple Developer account:
-    #   MAS_APP_CERT        "Apple Distribution: Taylor Emery (XK6QP975ZQ)"
-    #   MAS_INSTALLER_CERT  "3rd Party Mac Developer Installer: Taylor Emery (XK6QP975ZQ)"
-    #   MAS_PROFILE         path to the Mac App Store .provisionprofile for $BUNDLE_ID
-    if [[ -n "${MAS_APP_CERT:-}" && -n "${MAS_INSTALLER_CERT:-}" && -n "${MAS_PROFILE:-}" ]]; then
+    # The MAS signing assets (created 2026-08-28; see docs/APP_STORE.md). Override any
+    # of these via env or .env. The certs are the legacy Mac-specific distribution
+    # types (NOT "Apple Distribution", so they don't touch the EAS cert limit):
+    MAS_APP_CERT="${MAS_APP_CERT:-3rd Party Mac Developer Application: Taylor Emery ($TEAM_ID)}"
+    MAS_INSTALLER_CERT="${MAS_INSTALLER_CERT:-3rd Party Mac Developer Installer: Taylor Emery ($TEAM_ID)}"
+    MAS_PROFILE="${MAS_PROFILE:-$HOME/.config/bluebird/docucam-mas/BlueBird_DocuCam_Mac_App_Store.provisionprofile}"
+    if [[ -e "$MAS_PROFILE" ]] \
+       && security find-identity -v -p codesigning | grep -qF "$MAS_APP_CERT" \
+       && security find-identity -v -p basic       | grep -qF "$MAS_INSTALLER_CERT"; then
         cp "$MAS_PROFILE" "$APP/Contents/embedded.provisionprofile"
         codesign --force --timestamp \
                  --entitlements "$HERE/entitlements-mas.plist" \
@@ -79,15 +83,16 @@ if $MAS; then
         echo "                 --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>"
         echo "  (or open it with Transporter.app)"
     else
-        # No distribution cert yet — ad-hoc sandbox sign so you can verify it builds
+        # Signing assets missing — ad-hoc sandbox sign so you can verify it builds
         # and launches sandboxed. StoreKit can't load products without the real
         # App Store, so the paywall shows "Loading plans…" in this local build.
         codesign --force --sign - --identifier "$BUNDLE_ID" \
                  --entitlements "$HERE/entitlements-mas.plist" "$APP"
         echo ""
         echo "Built (ad-hoc, sandboxed, APP_STORE): $APP"
-        echo "This is a LOCAL-VERIFY build only. To produce the uploadable .pkg, set"
-        echo "MAS_APP_CERT, MAS_INSTALLER_CERT and MAS_PROFILE, then re-run ./build.sh --mas"
+        echo "This is a LOCAL-VERIFY build only (MAS cert or profile not found)."
+        echo "Expected profile: $MAS_PROFILE"
+        echo "Expected certs:   $MAS_APP_CERT / $MAS_INSTALLER_CERT"
     fi
     exit 0
 fi

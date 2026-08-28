@@ -2,6 +2,15 @@
 /build/
 *.zip
 *.dmg
+*.pkg
+
+# Signing material must never be committed (normally lives in ~/.config, not here)
+*.cer
+*.p12
+*.key
+*.certSigningRequest
+*.provisionprofile
+*.mobileprovision
 
 # Electron (Windows/Linux) build output
 electron/node_modules/
