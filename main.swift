@@ -61,6 +61,7 @@ final class PreviewView: NSView {
     let previewLayer = AVCaptureVideoPreviewLayer()
     let freezeLayer = CALayer()
     private let messageLabel = NSTextField(labelWithString: "")
+    private let pauseBadge = NSView()
 
     var rotation = 0 { didSet { needsLayout = true } }          // 0 / 90 / 180 / 270
     var flipH = false { didSet { needsLayout = true } }
@@ -72,7 +73,7 @@ final class PreviewView: NSView {
             needsLayout = true
         }
     }
-    var frozen = false { didSet { freezeLayer.isHidden = !frozen } }
+    var frozen = false { didSet { freezeLayer.isHidden = !frozen; pauseBadge.isHidden = !frozen } }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -96,6 +97,37 @@ final class PreviewView: NSView {
             messageLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
             messageLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
             messageLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.9),
+        ])
+
+        // Paused indicator — a pill in the top-right corner, shown only while frozen.
+        // A plain subview (not a layer), so it stays put regardless of rotate/flip/fill.
+        pauseBadge.wantsLayer = true
+        pauseBadge.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
+        pauseBadge.layer?.cornerRadius = 9
+        pauseBadge.isHidden = true
+        pauseBadge.translatesAutoresizingMaskIntoConstraints = false
+        let pauseIcon = NSImageView()
+        pauseIcon.image = NSImage(systemSymbolName: "pause.fill", accessibilityDescription: "Paused")
+        pauseIcon.contentTintColor = .white
+        pauseIcon.translatesAutoresizingMaskIntoConstraints = false
+        let pauseLabel = NSTextField(labelWithString: "Paused")
+        pauseLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        pauseLabel.textColor = .white
+        let pauseStack = NSStackView(views: [pauseIcon, pauseLabel])
+        pauseStack.orientation = .horizontal
+        pauseStack.spacing = 5
+        pauseStack.translatesAutoresizingMaskIntoConstraints = false
+        pauseBadge.addSubview(pauseStack)
+        addSubview(pauseBadge)
+        NSLayoutConstraint.activate([
+            pauseBadge.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+            pauseBadge.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            pauseStack.leadingAnchor.constraint(equalTo: pauseBadge.leadingAnchor, constant: 11),
+            pauseStack.trailingAnchor.constraint(equalTo: pauseBadge.trailingAnchor, constant: -11),
+            pauseStack.topAnchor.constraint(equalTo: pauseBadge.topAnchor, constant: 6),
+            pauseStack.bottomAnchor.constraint(equalTo: pauseBadge.bottomAnchor, constant: -6),
+            pauseIcon.widthAnchor.constraint(equalToConstant: 12),
+            pauseIcon.heightAnchor.constraint(equalToConstant: 12),
         ])
     }
 
