@@ -62,6 +62,7 @@ enum Support {
 final class PreviewView: NSView {
     let previewLayer = AVCaptureVideoPreviewLayer()
     let freezeLayer = CALayer()
+    let annotationView = AnnotationView()
     private let messageLabel = NSTextField(labelWithString: "")
     private let pauseBadge = NSView()
     private let scanBadge = NSView()
@@ -100,6 +101,10 @@ final class PreviewView: NSView {
         freezeLayer.contentsGravity = .resizeAspect
         layer?.addSublayer(previewLayer)
         layer?.addSublayer(freezeLayer)
+
+        annotationView.frame = bounds
+        annotationView.autoresizingMask = [.width, .height]
+        addSubview(annotationView)
 
         messageLabel.font = .systemFont(ofSize: 22, weight: .medium)
         messageLabel.textColor = .white
@@ -250,6 +255,60 @@ final class PreviewView: NSView {
     }
     func resetZoom() { zoom = 1; panOffset = .zero }
     func stepZoom(_ factor: CGFloat) { zoomBy(factor, at: CGPoint(x: bounds.midX, y: bounds.midY)) }
+}
+
+// MARK: - Annotation overlay — draw on the image (freeze first for a still page)
+
+final class AnnotationView: NSView {
+    private struct Stroke { var points: [CGPoint]; var color: NSColor; var width: CGFloat }
+    private var strokes: [Stroke] = []
+    private var current: Stroke?
+
+    var active = false { didSet { window?.invalidateCursorRects(for: self) } }
+    var color: NSColor = .systemRed
+    var highlighter = false
+
+    override var isFlipped: Bool { false }
+    // Pass mouse through to the preview (pan/zoom) unless we're actively annotating.
+    override func hitTest(_ point: NSPoint) -> NSView? { active ? super.hitTest(point) : nil }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { active }
+
+    override func mouseDown(with e: NSEvent) {
+        let p = convert(e.locationInWindow, from: nil)
+        current = Stroke(points: [p],
+                         color: highlighter ? color.withAlphaComponent(0.35) : color,
+                         width: highlighter ? 22 : 4)
+    }
+    override func mouseDragged(with e: NSEvent) {
+        guard current != nil else { return }
+        current?.points.append(convert(e.locationInWindow, from: nil))
+        needsDisplay = true
+    }
+    override func mouseUp(with e: NSEvent) {
+        if var s = current {
+            if s.points.count == 1 { s.points.append(CGPoint(x: s.points[0].x + 0.5, y: s.points[0].y + 0.5)) }
+            strokes.append(s)
+        }
+        current = nil
+        needsDisplay = true
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        for s in strokes { drawStroke(s) }
+        if let s = current { drawStroke(s) }
+    }
+    private func drawStroke(_ s: Stroke) {
+        guard s.points.count > 1 else { return }
+        let path = NSBezierPath()
+        path.lineWidth = s.width
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        path.move(to: s.points[0])
+        for p in s.points.dropFirst() { path.line(to: p) }
+        s.color.setStroke()
+        path.stroke()
+    }
+    override func resetCursorRects() { if active { addCursorRect(bounds, cursor: .crosshair) } }
+    func clear() { strokes.removeAll(); current = nil; needsDisplay = true }
 }
 
 // MARK: - Updater (lightweight: checks the GitHub latest release)
@@ -633,6 +692,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     private var flipHItem: NSMenuItem!
     private var flipVItem: NSMenuItem!
     private var fillItem: NSMenuItem!
+    private var annotateItem: NSMenuItem!
+    private var penItem: NSMenuItem!
+    private var highlighterItem: NSMenuItem!
 
     // pointer-hiding in full screen
     private var lastMouseMove = Date()
@@ -772,6 +834,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         add(capMenu, "Save Scan as PDF…", #selector(saveScanPDF), "p", [.command, .shift])
         add(capMenu, "Clear Scan", #selector(clearScan))
         capItem.submenu = capMenu
+
+        let annItem = NSMenuItem(); main.addItem(annItem)
+        let annMenu = NSMenu(title: "Annotate")
+        annotateItem = add(annMenu, "Annotate", #selector(toggleAnnotate), "d", [])
+        annMenu.addItem(.separator())
+        penItem = add(annMenu, "Pen", #selector(setPen)); penItem.state = .on
+        highlighterItem = add(annMenu, "Highlighter", #selector(setHighlighter))
+        annMenu.addItem(.separator())
+        let colors: [(String, NSColor)] = [("Red", .systemRed), ("Orange", .systemOrange),
+            ("Yellow", .systemYellow), ("Green", .systemGreen), ("Blue", .systemBlue),
+            ("White", .white), ("Black", .black)]
+        for (nm, col) in colors { add(annMenu, nm, #selector(setAnnotationColor(_:))).representedObject = col }
+        annMenu.addItem(.separator())
+        add(annMenu, "Clear Annotations", #selector(clearAnnotations))
+        annItem.submenu = annMenu
 
         NSApp.mainMenu = main
         rebuildCameraMenu()
@@ -1132,6 +1209,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         preview.scanCount = 0
         flashToast("Scan cleared")
     }
+
+    // MARK: Annotation
+
+    @objc private func toggleAnnotate() {
+        preview.annotationView.active.toggle()
+        annotateItem.state = preview.annotationView.active ? .on : .off
+        flashToast(preview.annotationView.active
+            ? "Annotating — drag to draw. Freeze (Space) first for a still page."
+            : "Annotation off")
+    }
+    @objc private func setPen() {
+        preview.annotationView.highlighter = false; penItem.state = .on; highlighterItem.state = .off
+    }
+    @objc private func setHighlighter() {
+        preview.annotationView.highlighter = true; penItem.state = .off; highlighterItem.state = .on
+    }
+    @objc private func setAnnotationColor(_ sender: NSMenuItem) {
+        if let c = sender.representedObject as? NSColor { preview.annotationView.color = c }
+    }
+    @objc private func clearAnnotations() { preview.annotationView.clear() }
 
     @objc private func fullScreenFromStatus() {
         showMainWindow()

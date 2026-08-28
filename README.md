@@ -19,10 +19,13 @@ From the [**alpha release**](https://github.com/emerytech/bluebird-docucam/relea
 - Live full-window / full-screen view of the document camera
 - Auto-picks the external (document) camera over the built-in FaceTime camera
 - Auto-connects when you plug the camera in
-- **Freeze** a frame to talk over it, then go live again
-- **Rotate** 90° (doc cams are often mounted sideways)
-- **Flip horizontal** to fix backwards / mirrored text, **flip vertical** for upside-down
-- **Fill vs Fit**
+- **Use your iPhone/iPad as the document camera** (Continuity Camera — no extra hardware)
+- **Zoom & pan** — scroll or pinch to zoom into detail, drag to pan
+- **Freeze** a frame to talk over it (with a "⏸ Paused" indicator), then go live again
+- **Rotate** 90°, **flip** horizontal/vertical (fix backwards / upside-down text), **fill vs fit**
+- **Snapshot** — save the frame to PNG or copy to the clipboard
+- **PDF scanner** — capture multiple pages and export them as one PDF
+- **Annotate** — draw with a pen or highlighter over the image (freeze first for a still page)
 - **Menu-bar icon** for quick access (freeze, full screen, reopen) — stays running when the window is closed
 - **Settings** (`⌘,`): open at login, start in full screen, hide the pointer when idle
 - **About** window with version and a one-tap **Check for Updates**
@@ -40,6 +43,10 @@ From the [**alpha release**](https://github.com/emerytech/bluebird-docucam/relea
 | `⌃⌘F` | Full screen (or the green window button) |
 | `⌘1`–`⌘9` | Choose camera |
 | `⌘,` | Settings |
+| `⌘+` / `⌘−` / `⌘0` | Zoom in / out / actual size |
+| `⌘S` / `⌘C` | Save image / Copy image |
+| `⇧⌘A` / `⇧⌘P` | Add page to scan / Save scan as PDF |
+| `D` | Toggle annotation |
 
 ## Repo layout
 - **`/` (root)** — the **native macOS** app (Swift/AppKit/AVFoundation). Best macOS experience; signed + notarized.
