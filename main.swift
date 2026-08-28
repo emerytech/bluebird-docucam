@@ -331,11 +331,11 @@ enum Updater {
                 if isNewer(latest, than: appVersion) {
                     let a = NSAlert()
                     a.messageText = "Update available"
-                    a.informativeText = "\(appName) \(latest) is available. You have \(appVersion)."
-                    a.addButton(withTitle: "Download")
+                    a.informativeText = "\(appName) \(latest) is available. You have \(appVersion). Install it now?"
+                    a.addButton(withTitle: "Install & Relaunch")
                     a.addButton(withTitle: "Later")
-                    if a.runModal() == .alertFirstButtonReturn, let u = URL(string: releasesURL) {
-                        NSWorkspace.shared.open(u)
+                    if a.runModal() == .alertFirstButtonReturn {
+                        SelfUpdater.shared.install(version: latest)   // download + in-place swap + relaunch
                     }
                 } else if userInitiated {
                     alert("You’re up to date", "\(appName) \(appVersion) is the latest version.")
@@ -359,6 +359,140 @@ enum Updater {
     private static func alert(_ t: String, _ m: String) {
         let a = NSAlert(); a.messageText = t; a.informativeText = m; a.runModal()
     }
+}
+
+// MARK: - In-place updater — download the release zip, atomically swap the bundle, relaunch.
+// GitHub build only; the App Store build must never self-update (Apple handles updates there).
+
+final class SelfUpdater: NSObject, NSWindowDelegate {
+    static let shared = SelfUpdater()
+    private var window: NSWindow?
+    private var progressBar: NSProgressIndicator?
+    private var statusLabel: NSTextField?
+    private var downloadTask: URLSessionDownloadTask?
+    private var cancelled = false
+
+    func install(version: String) {
+        cancelled = false
+        showProgress(version: version)
+        let urlStr = "https://github.com/emerytech/bluebird-docucam/releases/download/v\(version)/BlueBird-DocuCam.zip"
+        guard let url = URL(string: urlStr) else { fail(); return }
+        downloadTask = URLSession.shared.downloadTask(with: url) { [weak self] tmp, _, err in
+            DispatchQueue.main.async {
+                guard let self, !self.cancelled else { return }
+                guard let tmp, err == nil else { self.fail(); return }
+                self.statusLabel?.stringValue = "Installing…"
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let ok = Self.applyUpdate(from: tmp, version: version)
+                    DispatchQueue.main.async {
+                        if ok {
+                            self.statusLabel?.stringValue = "Relaunching…"
+                            self.progressBar?.isHidden = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                NSApp.terminate(nil)   // the installer script relaunches the new app
+                            }
+                        } else { self.fail() }
+                    }
+                }
+            }
+        }
+        downloadTask?.resume()
+    }
+
+    /// Unzip, then hand off to a detached shell script that swaps the bundle on the same
+    /// volume (atomic rename, restore-on-failure) and relaunches once we've quit.
+    private static func applyUpdate(from zip: URL, version: String) -> Bool {
+        let fm = FileManager.default
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("docucam-update-\(version)")
+        try? fm.removeItem(at: tmp)
+        guard (try? fm.createDirectory(at: tmp, withIntermediateDirectories: true)) != nil else { return false }
+
+        let uz = Process()
+        uz.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        uz.arguments = ["-x", "-k", zip.path, tmp.path]
+        guard (try? uz.run()) != nil else { return false }
+        uz.waitUntilExit()
+        guard uz.terminationStatus == 0 else { return false }
+
+        let newApp = tmp.appendingPathComponent("BlueBird DocuCam.app")
+        guard fm.fileExists(atPath: newApp.path) else { return false }
+
+        let cur = Bundle.main.bundlePath
+        let parent = (cur as NSString).deletingLastPathComponent
+        let staging = parent + "/.DocuCam-update-new"
+        let backup  = parent + "/.DocuCam-update-old"
+        let script = """
+        #!/bin/bash
+        set -e
+        sleep 1.5
+        rm -rf \(staging.shellQuoted) \(backup.shellQuoted)
+        /usr/bin/ditto \(newApp.path.shellQuoted) \(staging.shellQuoted)
+        mv \(cur.shellQuoted) \(backup.shellQuoted)
+        mv \(staging.shellQuoted) \(cur.shellQuoted) || { mv \(backup.shellQuoted) \(cur.shellQuoted); open \(cur.shellQuoted); exit 1; }
+        rm -rf \(backup.shellQuoted)
+        open \(cur.shellQuoted)
+        rm -rf \(tmp.path.shellQuoted)
+        """
+        let scriptURL = tmp.appendingPathComponent("install.sh")
+        guard (try? script.write(to: scriptURL, atomically: true, encoding: .utf8)) != nil else { return false }
+        try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        let installer = Process()
+        installer.executableURL = URL(fileURLWithPath: "/bin/bash")
+        installer.arguments = [scriptURL.path]
+        guard (try? installer.run()) != nil else { return false }
+        return true
+    }
+
+    private func showProgress(version: String) {
+        let W: CGFloat = 300
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: W, height: 110),
+                         styleMask: [.titled, .closable, .fullSizeContentView],
+                         backing: .buffered, defer: false)
+        w.title = ""; w.titleVisibility = .hidden; w.titlebarAppearsTransparent = true
+        w.isReleasedWhenClosed = false; w.level = .floating; w.delegate = self
+        let root = NSStackView()
+        root.orientation = .vertical; root.spacing = 10; root.alignment = .centerX
+        root.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 16, right: 20)
+        root.translatesAutoresizingMaskIntoConstraints = false
+        w.contentView?.addSubview(root)
+        NSLayoutConstraint.activate([
+            root.topAnchor.constraint(equalTo: w.contentView!.topAnchor),
+            root.leadingAnchor.constraint(equalTo: w.contentView!.leadingAnchor),
+            root.trailingAnchor.constraint(equalTo: w.contentView!.trailingAnchor),
+            root.bottomAnchor.constraint(equalTo: w.contentView!.bottomAnchor),
+        ])
+        let title = NSTextField(labelWithString: "Updating to \(appName) \(version)…")
+        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        root.addArrangedSubview(title)
+        let bar = NSProgressIndicator()
+        bar.style = .bar; bar.isIndeterminate = true; bar.startAnimation(nil)
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        bar.widthAnchor.constraint(equalToConstant: W - 40).isActive = true
+        root.addArrangedSubview(bar); progressBar = bar
+        let lbl = NSTextField(labelWithString: "Downloading…")
+        lbl.font = .systemFont(ofSize: 11); lbl.textColor = .secondaryLabelColor
+        root.addArrangedSubview(lbl); statusLabel = lbl
+        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancelTapped))
+        cancel.bezelStyle = .rounded
+        root.addArrangedSubview(cancel)
+        window = w
+        w.center(); w.makeKeyAndOrderFront(nil)
+        if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
+    }
+
+    private func fail() {
+        progressBar?.isHidden = true
+        statusLabel?.stringValue = "Update failed — try again later."
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.window?.close() }
+    }
+    @objc private func cancelTapped() { cancelled = true; downloadTask?.cancel(); window?.close() }
+    func windowWillClose(_ n: Notification) { window = nil }
+}
+
+private extension String {
+    /// Wraps a path in single quotes for safe shell interpolation.
+    var shellQuoted: String { "'" + replacingOccurrences(of: "'", with: "'\\''") + "'" }
 }
 
 // MARK: - About window
