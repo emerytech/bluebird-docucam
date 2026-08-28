@@ -377,20 +377,28 @@ final class SelfUpdater: NSObject, NSWindowDelegate {
         showProgress(version: version)
         let urlStr = "https://github.com/emerytech/bluebird-docucam/releases/download/v\(version)/BlueBird-DocuCam.zip"
         guard let url = URL(string: urlStr) else { fail(); return }
-        downloadTask = URLSession.shared.downloadTask(with: url) { [weak self] tmp, _, err in
+        downloadTask = URLSession.shared.downloadTask(with: url) { [weak self] tmp, response, err in
+            // URLSession deletes `tmp` once this handler returns — move it synchronously first.
+            var savedZip: URL?
+            if let tmp, err == nil, (response as? HTTPURLResponse)?.statusCode == 200 {
+                let dst = URL(fileURLWithPath: NSTemporaryDirectory())
+                    .appendingPathComponent("docucam-update-\(version).zip")
+                try? FileManager.default.removeItem(at: dst)
+                if (try? FileManager.default.moveItem(at: tmp, to: dst)) != nil { savedZip = dst }
+            }
             DispatchQueue.main.async {
                 guard let self, !self.cancelled else { return }
-                guard let tmp, err == nil else { self.fail(); return }
+                guard let zip = savedZip else { self.fail(); return }
                 self.statusLabel?.stringValue = "Installing…"
+                let oldPID = ProcessInfo.processInfo.processIdentifier
                 DispatchQueue.global(qos: .userInitiated).async {
-                    let ok = Self.applyUpdate(from: tmp, version: version)
+                    let ok = Self.applyUpdate(from: zip, version: version, oldPID: oldPID)
                     DispatchQueue.main.async {
+                        guard !self.cancelled else { return }
                         if ok {
                             self.statusLabel?.stringValue = "Relaunching…"
                             self.progressBar?.isHidden = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                                NSApp.terminate(nil)   // the installer script relaunches the new app
-                            }
+                            NSApp.terminate(nil)   // the script waits for us to exit, then swaps + relaunches
                         } else { self.fail() }
                     }
                 }
@@ -401,8 +409,12 @@ final class SelfUpdater: NSObject, NSWindowDelegate {
 
     /// Unzip, then hand off to a detached shell script that swaps the bundle on the same
     /// volume (atomic rename, restore-on-failure) and relaunches once we've quit.
-    private static func applyUpdate(from zip: URL, version: String) -> Bool {
+    private static func applyUpdate(from zip: URL, version: String, oldPID: Int32) -> Bool {
         let fm = FileManager.default
+        let cur = Bundle.main.bundlePath
+        let parent = (cur as NSString).deletingLastPathComponent
+        guard fm.isWritableFile(atPath: parent) else { return false }   // e.g. not admin, or read-only volume
+
         let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("docucam-update-\(version)")
         try? fm.removeItem(at: tmp)
         guard (try? fm.createDirectory(at: tmp, withIntermediateDirectories: true)) != nil else { return false }
@@ -414,20 +426,20 @@ final class SelfUpdater: NSObject, NSWindowDelegate {
         uz.waitUntilExit()
         guard uz.terminationStatus == 0 else { return false }
 
-        let newApp = tmp.appendingPathComponent("BlueBird DocuCam.app")
-        guard fm.fileExists(atPath: newApp.path) else { return false }
+        // Find the .app inside the extraction (don't assume the exact folder name).
+        guard let appName = (try? fm.contentsOfDirectory(atPath: tmp.path))?.first(where: { $0.hasSuffix(".app") })
+        else { return false }
+        let newApp = tmp.appendingPathComponent(appName)
 
-        let cur = Bundle.main.bundlePath
-        let parent = (cur as NSString).deletingLastPathComponent
         let staging = parent + "/.DocuCam-update-new"
         let backup  = parent + "/.DocuCam-update-old"
+        // No `set -e`: each step guards itself and restores the original bundle on any failure.
         let script = """
         #!/bin/bash
-        set -e
-        sleep 1.5
+        while kill -0 \(oldPID) 2>/dev/null; do sleep 0.1; done   # wait for the old app to fully quit
         rm -rf \(staging.shellQuoted) \(backup.shellQuoted)
-        /usr/bin/ditto \(newApp.path.shellQuoted) \(staging.shellQuoted)
-        mv \(cur.shellQuoted) \(backup.shellQuoted)
+        /usr/bin/ditto \(newApp.path.shellQuoted) \(staging.shellQuoted) || { open \(cur.shellQuoted); exit 1; }
+        mv \(cur.shellQuoted) \(backup.shellQuoted) || { rm -rf \(staging.shellQuoted); open \(cur.shellQuoted); exit 1; }
         mv \(staging.shellQuoted) \(cur.shellQuoted) || { mv \(backup.shellQuoted) \(cur.shellQuoted); open \(cur.shellQuoted); exit 1; }
         rm -rf \(backup.shellQuoted)
         open \(cur.shellQuoted)
@@ -800,7 +812,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCaptureVideoDataOutputSampleBufferDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate, AVCaptureVideoDataOutputSampleBufferDelegate {
     private var window: NSWindow!
     private var preview: PreviewView!
     private var statusItem: NSStatusItem!
@@ -829,6 +841,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     private var annotateItem: NSMenuItem!
     private var penItem: NSMenuItem!
     private var highlighterItem: NSMenuItem!
+    private var colorItems: [NSMenuItem] = []
 
     // pointer-hiding in full screen
     private var lastMouseMove = Date()
@@ -917,6 +930,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     // Releasing the camera when the window is closed (app stays in the menu bar).
     func windowWillClose(_ n: Notification) {
         if (n.object as? NSWindow) === window {
+            bufferLock.lock()
+            pendingFreeze = false; pendingSnapshotSave = false; pendingSnapshotCopy = false; pendingAddPage = false
+            bufferLock.unlock()
             sessionQueue.async { if self.session.isRunning { self.session.stopRunning() } }
         }
     }
@@ -940,6 +956,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
 
         let camItem = NSMenuItem(); main.addItem(camItem)
         cameraMenu = NSMenu(title: "Camera")
+        cameraMenu.delegate = self   // rebuild the device list every time the menu opens
         camItem.submenu = cameraMenu
 
         let viewItem = NSMenuItem(); main.addItem(viewItem)
@@ -979,7 +996,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         let colors: [(String, NSColor)] = [("Red", .systemRed), ("Orange", .systemOrange),
             ("Yellow", .systemYellow), ("Green", .systemGreen), ("Blue", .systemBlue),
             ("White", .white), ("Black", .black)]
-        for (nm, col) in colors { add(annMenu, nm, #selector(setAnnotationColor(_:))).representedObject = col }
+        for (i, (nm, col)) in colors.enumerated() {
+            let it = add(annMenu, nm, #selector(setAnnotationColor(_:)))
+            it.representedObject = col
+            if i == 0 { it.state = .on }   // Red is the default
+            colorItems.append(it)
+        }
         annMenu.addItem(.separator())
         add(annMenu, "Clear Annotations", #selector(clearAnnotations))
         annItem.submenu = annMenu
@@ -1042,6 +1064,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         cameraMenu.addItem(.separator())
         add(cameraMenu, "Refresh Cameras", #selector(refreshCameras), "r", [.command])
         SettingsWindow.shared.refreshIfOpen()
+    }
+
+    // Rebuild the camera list whenever the Camera menu opens, so a just-connected device
+    // (e.g. an iPhone via Continuity Camera, which may not fire a connect notification) shows up.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === cameraMenu { rebuildCameraMenu() }
     }
 
     private func syncViewMenu() {
@@ -1283,7 +1311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
                       let tiff = nsImage.tiffRepresentation,
                       let rep = NSBitmapImageRep(data: tiff),
                       let png = rep.representation(using: .png, properties: [:]) else { return }
-                try? png.write(to: url)
+                do { try png.write(to: url) } catch { self.flashToast("Couldn’t save the image") }
             }
         } else {
             NSPasteboard.general.clearContents()
@@ -1295,9 +1323,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     /// Bakes the current rotation + flip into the saved/copied image so it matches the screen.
     private func orientedSnapshot(_ cg: CGImage) -> CGImage {
         if preview.rotation == 0 && !preview.flipH && !preview.flipV { return cg }
-        var xf = CGAffineTransform(rotationAngle: CGFloat(preview.rotation) * .pi / 180)
+        // Flips before rotation, to match layout()'s CATransform3DScale(rotation) composition
+        // (otherwise rotation 90/270 + a flip comes out mirrored).
+        var xf = CGAffineTransform.identity
         if preview.flipH { xf = xf.concatenating(CGAffineTransform(scaleX: -1, y: 1)) }
         if preview.flipV { xf = xf.concatenating(CGAffineTransform(scaleX: 1, y: -1)) }
+        xf = xf.concatenating(CGAffineTransform(rotationAngle: CGFloat(preview.rotation) * .pi / 180))
         let out = CIImage(cgImage: cg).transformed(by: xf)
         return ciContext.createCGImage(out, from: out.extent) ?? cg
     }
@@ -1331,11 +1362,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         panel.begin { resp in
             guard resp == .OK, let url = panel.url else { return }
             let doc = PDFDocument()
-            for (i, cg) in pages.enumerated() {
+            for cg in pages {
                 let img = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-                if let page = PDFPage(image: img) { doc.insert(page, at: i) }
+                if let page = PDFPage(image: img) { doc.insert(page, at: doc.pageCount) }
             }
-            doc.write(to: url)
+            if !doc.write(to: url) { self.flashToast("Couldn’t save the PDF") }
         }
     }
     @objc private func clearScan() {
@@ -1361,6 +1392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     }
     @objc private func setAnnotationColor(_ sender: NSMenuItem) {
         if let c = sender.representedObject as? NSColor { preview.annotationView.color = c }
+        for it in colorItems { it.state = (it === sender) ? .on : .off }
     }
     @objc private func clearAnnotations() { preview.annotationView.clear() }
 
