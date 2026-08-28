@@ -1,5 +1,6 @@
 import Cocoa
 import UniformTypeIdentifiers
+import PDFKit
 import AVFoundation
 import CoreMedia
 import CoreVideo
@@ -63,6 +64,15 @@ final class PreviewView: NSView {
     let freezeLayer = CALayer()
     private let messageLabel = NSTextField(labelWithString: "")
     private let pauseBadge = NSView()
+    private let scanBadge = NSView()
+    private let scanBadgeLabel = NSTextField(labelWithString: "")
+
+    var scanCount = 0 {
+        didSet {
+            scanBadge.isHidden = scanCount == 0
+            scanBadgeLabel.stringValue = "\(scanCount) page" + (scanCount == 1 ? "" : "s")
+        }
+    }
 
     var rotation = 0 { didSet { needsLayout = true } }          // 0 / 90 / 180 / 270
     var flipH = false { didSet { needsLayout = true } }
@@ -133,6 +143,35 @@ final class PreviewView: NSView {
             pauseStack.bottomAnchor.constraint(equalTo: pauseBadge.bottomAnchor, constant: -6),
             pauseIcon.widthAnchor.constraint(equalToConstant: 12),
             pauseIcon.heightAnchor.constraint(equalToConstant: 12),
+        ])
+
+        // Scan page-count badge — a pill in the top-left, shown while a PDF scan is in progress.
+        scanBadge.wantsLayer = true
+        scanBadge.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
+        scanBadge.layer?.cornerRadius = 9
+        scanBadge.isHidden = true
+        scanBadge.translatesAutoresizingMaskIntoConstraints = false
+        let scanIcon = NSImageView()
+        scanIcon.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Scan pages")
+        scanIcon.contentTintColor = .white
+        scanIcon.translatesAutoresizingMaskIntoConstraints = false
+        scanBadgeLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        scanBadgeLabel.textColor = .white
+        let scanStack = NSStackView(views: [scanIcon, scanBadgeLabel])
+        scanStack.orientation = .horizontal
+        scanStack.spacing = 5
+        scanStack.translatesAutoresizingMaskIntoConstraints = false
+        scanBadge.addSubview(scanStack)
+        addSubview(scanBadge)
+        NSLayoutConstraint.activate([
+            scanBadge.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+            scanBadge.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            scanStack.leadingAnchor.constraint(equalTo: scanBadge.leadingAnchor, constant: 11),
+            scanStack.trailingAnchor.constraint(equalTo: scanBadge.trailingAnchor, constant: -11),
+            scanStack.topAnchor.constraint(equalTo: scanBadge.topAnchor, constant: 6),
+            scanStack.bottomAnchor.constraint(equalTo: scanBadge.bottomAnchor, constant: -6),
+            scanIcon.widthAnchor.constraint(equalToConstant: 14),
+            scanIcon.heightAnchor.constraint(equalToConstant: 12),
         ])
     }
 
@@ -583,7 +622,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     private var pendingFreeze = false                   // guarded by bufferLock
     private var pendingSnapshotSave = false             // guarded by bufferLock
     private var pendingSnapshotCopy = false             // guarded by bufferLock
+    private var pendingAddPage = false                  // guarded by bufferLock
     private var frozenCGImage: CGImage?                 // main thread; the displayed frozen frame
+    private var scanPages: [CGImage] = []               // main thread; collected PDF pages (oriented)
     private let bufferLock = NSLock()
     private let ciContext = CIContext()
 
@@ -726,6 +767,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         let capMenu = NSMenu(title: "Capture")
         add(capMenu, "Save Image…", #selector(saveSnapshot), "s", [.command])
         add(capMenu, "Copy Image", #selector(copySnapshot), "c", [.command])
+        capMenu.addItem(.separator())
+        add(capMenu, "Add Page to Scan", #selector(addScanPage), "a", [.command, .shift])
+        add(capMenu, "Save Scan as PDF…", #selector(saveScanPDF), "p", [.command, .shift])
+        add(capMenu, "Clear Scan", #selector(clearScan))
         capItem.submenu = capMenu
 
         NSApp.mainMenu = main
@@ -918,8 +963,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         let doFreeze = pendingFreeze; if doFreeze { pendingFreeze = false }
         let doSave = pendingSnapshotSave; if doSave { pendingSnapshotSave = false }
         let doCopy = pendingSnapshotCopy; if doCopy { pendingSnapshotCopy = false }
+        let doAddPage = pendingAddPage; if doAddPage { pendingAddPage = false }
         bufferLock.unlock()
-        guard doFreeze || doSave || doCopy,
+        guard doFreeze || doSave || doCopy || doAddPage,
               let pb = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let ci = CIImage(cvPixelBuffer: pb)
         guard let cg = ciContext.createCGImage(ci, from: ci.extent) else { return }
@@ -932,6 +978,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
             }
             if doSave { self.deliverSnapshot(cg, save: true) }
             if doCopy { self.deliverSnapshot(cg, save: false) }
+            if doAddPage { self.appendScanPage(cg) }
         }
     }
 
@@ -1050,6 +1097,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     private func flashToast(_ text: String) {
         preview.showMessage(text)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { self.preview.showMessage(nil) }
+    }
+
+    // MARK: PDF scan — collect pages, then export one multi-page PDF
+
+    @objc private func addScanPage() {
+        if preview.frozen, let cg = frozenCGImage { appendScanPage(cg) }
+        else { bufferLock.lock(); pendingAddPage = true; bufferLock.unlock() }
+    }
+    private func appendScanPage(_ cg: CGImage) {
+        scanPages.append(orientedSnapshot(cg))
+        preview.scanCount = scanPages.count
+        flashToast("Added page \(scanPages.count)")
+    }
+    @objc private func saveScanPDF() {
+        guard !scanPages.isEmpty else { flashToast("No pages yet — use Add Page to Scan (⇧⌘A)"); return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = "Scan \(snapshotStamp).pdf"
+        panel.canCreateDirectories = true
+        let pages = scanPages
+        panel.begin { resp in
+            guard resp == .OK, let url = panel.url else { return }
+            let doc = PDFDocument()
+            for (i, cg) in pages.enumerated() {
+                let img = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+                if let page = PDFPage(image: img) { doc.insert(page, at: i) }
+            }
+            doc.write(to: url)
+        }
+    }
+    @objc private func clearScan() {
+        scanPages.removeAll()
+        preview.scanCount = 0
+        flashToast("Scan cleared")
     }
 
     @objc private func fullScreenFromStatus() {
