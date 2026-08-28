@@ -1,4 +1,5 @@
 import Cocoa
+import UniformTypeIdentifiers
 import AVFoundation
 import CoreMedia
 import CoreVideo
@@ -580,6 +581,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     private var activeDeviceID: String?                 // UI source of truth; main thread only
 
     private var pendingFreeze = false                   // guarded by bufferLock
+    private var pendingSnapshotSave = false             // guarded by bufferLock
+    private var pendingSnapshotCopy = false             // guarded by bufferLock
+    private var frozenCGImage: CGImage?                 // main thread; the displayed frozen frame
     private let bufferLock = NSLock()
     private let ciContext = CIContext()
 
@@ -717,6 +721,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
                          action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
             .keyEquivalentModifierMask = [.command, .control]
         viewItem.submenu = viewMenu
+
+        let capItem = NSMenuItem(); main.addItem(capItem)
+        let capMenu = NSMenu(title: "Capture")
+        add(capMenu, "Save Image…", #selector(saveSnapshot), "s", [.command])
+        add(capMenu, "Copy Image", #selector(copySnapshot), "c", [.command])
+        capItem.submenu = capMenu
 
         NSApp.mainMenu = main
         rebuildCameraMenu()
@@ -903,18 +913,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
-        // Only convert a frame when a freeze is pending — never hold a pool buffer.
+        // Only convert a frame when something needs it — never hold a pool buffer.
         bufferLock.lock()
-        let want = pendingFreeze
-        if want { pendingFreeze = false }
+        let doFreeze = pendingFreeze; if doFreeze { pendingFreeze = false }
+        let doSave = pendingSnapshotSave; if doSave { pendingSnapshotSave = false }
+        let doCopy = pendingSnapshotCopy; if doCopy { pendingSnapshotCopy = false }
         bufferLock.unlock()
-        guard want, let pb = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        guard doFreeze || doSave || doCopy,
+              let pb = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let ci = CIImage(cvPixelBuffer: pb)
         guard let cg = ciContext.createCGImage(ci, from: ci.extent) else { return }
         DispatchQueue.main.async {
-            self.preview.setFreezeImage(cg)
-            self.preview.frozen = true
-            self.syncViewMenu()
+            if doFreeze {
+                self.frozenCGImage = cg
+                self.preview.setFreezeImage(cg)
+                self.preview.frozen = true
+                self.syncViewMenu()
+            }
+            if doSave { self.deliverSnapshot(cg, save: true) }
+            if doCopy { self.deliverSnapshot(cg, save: false) }
         }
     }
 
@@ -945,6 +962,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     @objc private func toggleFreeze() {
         if preview.frozen {
             preview.frozen = false
+            frozenCGImage = nil
             syncViewMenu()
         } else {
             // Capture the next incoming frame; `frozen` flips true when it arrives.
@@ -978,6 +996,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
     @objc private func zoomIn() { preview.stepZoom(1.25) }
     @objc private func zoomOut() { preview.stepZoom(0.8) }
     @objc private func actualSize() { preview.resetZoom() }
+
+    // MARK: Snapshot (save to file / copy to clipboard)
+
+    @objc private func copySnapshot() { captureSnapshot(save: false) }
+    @objc private func saveSnapshot() { captureSnapshot(save: true) }
+
+    private func captureSnapshot(save: Bool) {
+        if preview.frozen, let cg = frozenCGImage {
+            deliverSnapshot(cg, save: save)                 // use the displayed frozen frame
+        } else {
+            bufferLock.lock()
+            if save { pendingSnapshotSave = true } else { pendingSnapshotCopy = true }
+            bufferLock.unlock()                             // grabbed on the next captured frame
+        }
+    }
+
+    private func deliverSnapshot(_ cg: CGImage, save: Bool) {
+        let img = orientedSnapshot(cg)
+        let nsImage = NSImage(cgImage: img, size: NSSize(width: img.width, height: img.height))
+        if save {
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [.png]
+            panel.nameFieldStringValue = "DocuCam \(snapshotStamp).png"
+            panel.canCreateDirectories = true
+            panel.begin { resp in
+                guard resp == .OK, let url = panel.url,
+                      let tiff = nsImage.tiffRepresentation,
+                      let rep = NSBitmapImageRep(data: tiff),
+                      let png = rep.representation(using: .png, properties: [:]) else { return }
+                try? png.write(to: url)
+            }
+        } else {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects([nsImage])
+            flashToast("Copied to clipboard")
+        }
+    }
+
+    /// Bakes the current rotation + flip into the saved/copied image so it matches the screen.
+    private func orientedSnapshot(_ cg: CGImage) -> CGImage {
+        if preview.rotation == 0 && !preview.flipH && !preview.flipV { return cg }
+        var xf = CGAffineTransform(rotationAngle: CGFloat(preview.rotation) * .pi / 180)
+        if preview.flipH { xf = xf.concatenating(CGAffineTransform(scaleX: -1, y: 1)) }
+        if preview.flipV { xf = xf.concatenating(CGAffineTransform(scaleX: 1, y: -1)) }
+        let out = CIImage(cgImage: cg).transformed(by: xf)
+        return ciContext.createCGImage(out, from: out.extent) ?? cg
+    }
+
+    private var snapshotStamp: String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH.mm.ss"; return f.string(from: Date())
+    }
+    private func flashToast(_ text: String) {
+        preview.showMessage(text)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { self.preview.showMessage(nil) }
+    }
 
     @objc private func fullScreenFromStatus() {
         showMainWindow()
