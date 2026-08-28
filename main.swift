@@ -74,6 +74,10 @@ final class PreviewView: NSView {
         }
     }
     var frozen = false { didSet { freezeLayer.isHidden = !frozen; pauseBadge.isHidden = !frozen } }
+    var zoom: CGFloat = 1 { didSet { needsLayout = true } }
+    var panOffset = CGPoint.zero { didSet { needsLayout = true } }
+    private var lastDrag: CGPoint?
+    private var didPushCursor = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -154,14 +158,58 @@ final class PreviewView: NSView {
                          : CGRect(x: 0, y: 0, width: b.width, height: b.height)
         for l in [previewLayer, freezeLayer] {
             l.bounds = lb
-            l.position = CGPoint(x: b.midX, y: b.midY)
+            l.position = CGPoint(x: b.midX + panOffset.x, y: b.midY + panOffset.y)
             var t = CATransform3DMakeRotation(CGFloat(rotation) * .pi / 180, 0, 0, 1)
             if flipH { t = CATransform3DScale(t, -1, 1, 1) }
             if flipV { t = CATransform3DScale(t, 1, -1, 1) }
+            if zoom != 1 { t = CATransform3DScale(t, zoom, zoom, 1) }   // zoom in screen space
             l.transform = t
         }
         CATransaction.commit()
     }
+
+    // MARK: Zoom & pan — scroll or pinch to zoom (anchored at the cursor), drag to pan, double-click to reset.
+
+    override func scrollWheel(with event: NSEvent) {
+        let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
+        guard delta != 0 else { return }
+        zoomBy(1 + delta * 0.008, at: convert(event.locationInWindow, from: nil))
+    }
+    override func magnify(with event: NSEvent) {
+        zoomBy(1 + event.magnification, at: convert(event.locationInWindow, from: nil))
+    }
+    private func zoomBy(_ factor: CGFloat, at point: CGPoint) {
+        let newZoom = min(max(zoom * factor, 1), 8)
+        guard abs(newZoom - zoom) > 0.0001 else { return }
+        let f = newZoom / zoom
+        let cc = CGPoint(x: point.x - bounds.midX, y: point.y - bounds.midY)
+        var newPan = CGPoint(x: cc.x * (1 - f) + f * panOffset.x,
+                             y: cc.y * (1 - f) + f * panOffset.y)
+        if newZoom == 1 { newPan = .zero }
+        zoom = newZoom
+        panOffset = clampPan(newPan, forZoom: newZoom)
+    }
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 { resetZoom(); lastDrag = nil; return }
+        lastDrag = convert(event.locationInWindow, from: nil)
+        if zoom > 1 { NSCursor.closedHand.push(); didPushCursor = true }
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard zoom > 1, let last = lastDrag else { return }
+        let p = convert(event.locationInWindow, from: nil)
+        panOffset = clampPan(CGPoint(x: panOffset.x + (p.x - last.x), y: panOffset.y + (p.y - last.y)), forZoom: zoom)
+        lastDrag = p
+    }
+    override func mouseUp(with event: NSEvent) {
+        if didPushCursor { NSCursor.pop(); didPushCursor = false }
+        lastDrag = nil
+    }
+    private func clampPan(_ p: CGPoint, forZoom z: CGFloat) -> CGPoint {
+        let mx = max(0, (z - 1) * bounds.width / 2), my = max(0, (z - 1) * bounds.height / 2)
+        return CGPoint(x: min(max(p.x, -mx), mx), y: min(max(p.y, -my), my))
+    }
+    func resetZoom() { zoom = 1; panOffset = .zero }
+    func stepZoom(_ factor: CGFloat) { zoomBy(factor, at: CGPoint(x: bounds.midX, y: bounds.midY)) }
 }
 
 // MARK: - Updater (lightweight: checks the GitHub latest release)
@@ -661,6 +709,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         flipVItem = add(viewMenu, "Flip Vertical", #selector(toggleFlipV), "v", [])
         fillItem = add(viewMenu, "Fill Screen", #selector(toggleFill), "f", [])
         viewMenu.addItem(.separator())
+        add(viewMenu, "Zoom In", #selector(zoomIn), "=", [.command])
+        add(viewMenu, "Zoom Out", #selector(zoomOut), "-", [.command])
+        add(viewMenu, "Actual Size", #selector(actualSize), "0", [.command])
+        viewMenu.addItem(.separator())
         viewMenu.addItem(withTitle: "Enter Full Screen",
                          action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
             .keyEquivalentModifierMask = [.command, .control]
@@ -743,7 +795,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
 
     private func availableCameras() -> [AVCaptureDevice] {
         var types: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera]
-        if #available(macOS 14.0, *) { types.append(.external) } else { types.append(.externalUnknown) }
+        if #available(macOS 14.0, *) {
+            types.append(.external)
+            types.append(.continuityCamera)   // iPhone/iPad as a document camera
+        } else {
+            types.append(.externalUnknown)
+        }
         return AVCaptureDevice.DiscoverySession(deviceTypes: types, mediaType: .video,
                                                 position: .unspecified).devices
     }
@@ -791,7 +848,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
                 self.applyDeviceLocked(device)          // already on sessionQueue
             } else {
                 DispatchQueue.main.async {
-                    self.preview.showMessage("No camera found.\n\nPlug in your document camera — it will connect automatically.")
+                    self.preview.showMessage("No camera found.\n\nPlug in a document camera — or use your iPhone/iPad: hold it near this Mac (same Apple ID, Wi‑Fi + Bluetooth on) and it appears in the Camera menu.")
                     self.rebuildCameraMenu()
                 }
             }
@@ -826,6 +883,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
             UserDefaults.standard.set(device.uniqueID, forKey: kDevice)
             DispatchQueue.main.async {
                 self.activeDeviceID = device.uniqueID
+                self.preview.resetZoom()
                 self.preview.showMessage(nil)
                 self.rebuildCameraMenu()
             }
@@ -878,7 +936,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
             if !stillHere {
                 self.activeDeviceID = nil
                 if let dev = self.preferredDefault(cams) { self.selectDevice(dev) }
-                else { self.preview.showMessage("No camera found.\n\nPlug in your document camera — it will connect automatically.") }
+                else { self.preview.showMessage("No camera found.\n\nPlug in a document camera — or use your iPhone/iPad: hold it near this Mac (same Apple ID, Wi‑Fi + Bluetooth on) and it appears in the Camera menu.") }
             }
             self.rebuildCameraMenu()
         }
@@ -916,6 +974,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCa
         UserDefaults.standard.set(preview.fill, forKey: kFill)
         syncViewMenu()
     }
+
+    @objc private func zoomIn() { preview.stepZoom(1.25) }
+    @objc private func zoomOut() { preview.stepZoom(0.8) }
+    @objc private func actualSize() { preview.resetZoom() }
 
     @objc private func fullScreenFromStatus() {
         showMainWindow()
