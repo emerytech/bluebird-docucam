@@ -5,6 +5,10 @@
 #   ./build.sh --sign   Universal build, Developer ID signed + notarized + stapled,
 #                       packaged as BlueBird-DocuCam.dmg (+ .zip). Ready to distribute
 #                       — installs with no Gatekeeper prompt.
+#   ./build.sh --mas    Mac App Store build: compiles with -D APP_STORE (sandbox +
+#                       StoreKit subscription gate, no Ko-fi / self-updater). With the
+#                       MAS_* env vars set it produces an uploadable, signed .pkg;
+#                       without them it ad-hoc sandbox-signs for local verification.
 #
 # --sign uses these (override via env or a .env file beside this script):
 #   TEAM_ID             default XK6QP975ZQ  (the Developer ID Application team)
@@ -27,7 +31,13 @@ APPLE_ID="${APPLE_ID:-}"
 APP_PASSWORD="${APP_PASSWORD:-}"
 
 SIGN=false
-for a in "$@"; do [[ "$a" == "--sign" ]] && SIGN=true; done
+MAS=false
+SWIFT_FLAGS=""
+for a in "$@"; do
+    [[ "$a" == "--sign" ]] && SIGN=true
+    [[ "$a" == "--mas"  ]] && MAS=true
+done
+$MAS && SWIFT_FLAGS="-D APP_STORE"
 
 BUILD="build"
 APP="$BUILD/$APP_DISPLAY.app"
@@ -37,9 +47,9 @@ ZIP="$HERE/BlueBird-DocuCam.zip"
 # ── Build (universal) ──────────────────────────────────────────────────────────
 rm -rf "$BUILD"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-echo "Compiling arm64…"
-swiftc -O -target "arm64-apple-macos$MIN_MACOS" main.swift -o "$BUILD/$EXECNAME-arm64"
-if swiftc -O -target "x86_64-apple-macos$MIN_MACOS" main.swift -o "$BUILD/$EXECNAME-x86_64" 2>/dev/null; then
+echo "Compiling arm64…${SWIFT_FLAGS:+ ($SWIFT_FLAGS)}"
+swiftc -O $SWIFT_FLAGS -target "arm64-apple-macos$MIN_MACOS" main.swift -o "$BUILD/$EXECNAME-arm64"
+if swiftc -O $SWIFT_FLAGS -target "x86_64-apple-macos$MIN_MACOS" main.swift -o "$BUILD/$EXECNAME-x86_64" 2>/dev/null; then
     echo "Compiling x86_64… ok — universal binary"
     lipo -create -output "$APP/Contents/MacOS/$EXECNAME" "$BUILD/$EXECNAME-arm64" "$BUILD/$EXECNAME-x86_64"
 else
@@ -48,6 +58,39 @@ else
 fi
 cp Info.plist "$APP/Contents/Info.plist"
 cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
+# ── Mac App Store path ─────────────────────────────────────────────────────────
+if $MAS; then
+    PKG="$HERE/BlueBird-DocuCam-MAS.pkg"
+    # Real, uploadable package — needs these from your Apple Developer account:
+    #   MAS_APP_CERT        "Apple Distribution: Taylor Emery (XK6QP975ZQ)"
+    #   MAS_INSTALLER_CERT  "3rd Party Mac Developer Installer: Taylor Emery (XK6QP975ZQ)"
+    #   MAS_PROFILE         path to the Mac App Store .provisionprofile for $BUNDLE_ID
+    if [[ -n "${MAS_APP_CERT:-}" && -n "${MAS_INSTALLER_CERT:-}" && -n "${MAS_PROFILE:-}" ]]; then
+        cp "$MAS_PROFILE" "$APP/Contents/embedded.provisionprofile"
+        codesign --force --timestamp \
+                 --entitlements "$HERE/entitlements-mas.plist" \
+                 --sign "$MAS_APP_CERT" "$APP"
+        codesign --verify --strict "$APP"
+        productbuild --component "$APP" /Applications --sign "$MAS_INSTALLER_CERT" "$PKG"
+        echo ""
+        echo "✓ Mac App Store package: $PKG"
+        echo "  Upload:  xcrun altool --upload-app -f \"$PKG\" -t macos \\"
+        echo "                 --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>"
+        echo "  (or open it with Transporter.app)"
+    else
+        # No distribution cert yet — ad-hoc sandbox sign so you can verify it builds
+        # and launches sandboxed. StoreKit can't load products without the real
+        # App Store, so the paywall shows "Loading plans…" in this local build.
+        codesign --force --sign - --identifier "$BUNDLE_ID" \
+                 --entitlements "$HERE/entitlements-mas.plist" "$APP"
+        echo ""
+        echo "Built (ad-hoc, sandboxed, APP_STORE): $APP"
+        echo "This is a LOCAL-VERIFY build only. To produce the uploadable .pkg, set"
+        echo "MAS_APP_CERT, MAS_INSTALLER_CERT and MAS_PROFILE, then re-run ./build.sh --mas"
+    fi
+    exit 0
+fi
 
 # ── Ad-hoc path (dev) ──────────────────────────────────────────────────────────
 if ! $SIGN; then

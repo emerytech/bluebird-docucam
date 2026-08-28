@@ -311,6 +311,8 @@ final class AnnotationView: NSView {
     func clear() { strokes.removeAll(); current = nil; needsDisplay = true }
 }
 
+#if !APP_STORE   // GitHub build only: self-update + Ko-fi. The App Store build strips both.
+
 // MARK: - Updater (lightweight: checks the GitHub latest release)
 
 enum Updater {
@@ -507,6 +509,144 @@ private extension String {
     var shellQuoted: String { "'" + replacingOccurrences(of: "'", with: "'\\''") + "'" }
 }
 
+#endif  // !APP_STORE
+
+// MARK: - StoreKit subscription + paywall (App Store build only)
+
+#if APP_STORE
+import StoreKit
+
+let subProductIDs = ["com.emerytech.BlueBirdDocuCam.yearly", "com.emerytech.BlueBirdDocuCam.monthly"]
+
+/// Subscription state. Plain class (not @MainActor) so the AppKit AppDelegate can touch it
+/// freely; all published state is written back on the main actor, where the UI reads it.
+final class Store {
+    static let shared = Store()
+    private(set) var products: [Product] = []
+    private(set) var isSubscribed = false
+    var onChange: (() -> Void)?
+    private var updatesTask: Task<Void, Never>?
+
+    func start() {
+        updatesTask = Task { [weak self] in
+            for await update in Transaction.updates {
+                if case .verified(let t) = update { await t.finish() }
+                await self?.refresh()
+            }
+        }
+        Task { await loadProducts(); await refresh() }
+    }
+    func loadProducts() async {
+        let loaded = ((try? await Product.products(for: subProductIDs)) ?? []).sorted { $0.price < $1.price }
+        await MainActor.run { self.products = loaded; self.onChange?() }
+    }
+    func refresh() async {
+        var active = false
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let t) = result, subProductIDs.contains(t.productID), t.revocationDate == nil
+            else { continue }
+            if let exp = t.expirationDate { if exp > Date() { active = true } } else { active = true }
+        }
+        let resolved = active
+        await MainActor.run { self.isSubscribed = resolved; self.onChange?() }
+    }
+    @discardableResult
+    func purchase(_ product: Product) async -> Bool {
+        guard let result = try? await product.purchase() else { return false }
+        if case .success(let verification) = result, case .verified(let t) = verification {
+            await t.finish(); await refresh(); return true
+        }
+        return false
+    }
+    func restore() async { try? await AppStore.sync(); await refresh() }
+}
+
+/// Blocks the app until there's an active subscription (a free trial counts as active).
+final class Paywall: NSObject, NSWindowDelegate {
+    static let shared = Paywall()
+    private var window: NSWindow?
+
+    func show() {
+        let w = window ?? makeWindow()
+        buildBody(in: w)                 // rebuild each time so it reflects loaded products / state
+        window = w
+        w.center(); w.makeKeyAndOrderFront(nil)
+        if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
+    }
+    func close() { window?.orderOut(nil) }
+
+    private func makeWindow() -> NSWindow {
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 470),
+                         styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+        w.titleVisibility = .hidden; w.titlebarAppearsTransparent = true
+        w.isReleasedWhenClosed = false; w.level = .floating; w.delegate = self
+        return w
+    }
+    private func buildBody(in w: NSWindow) {
+        guard let cv = w.contentView else { return }
+        cv.subviews.forEach { $0.removeFromSuperview() }
+
+        let icon = NSImageView(); icon.image = NSApp.applicationIconImage
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([icon.widthAnchor.constraint(equalToConstant: 82),
+                                     icon.heightAnchor.constraint(equalToConstant: 82)])
+        let title = NSTextField(labelWithString: appName)
+        title.font = .systemFont(ofSize: 22, weight: .bold); title.textColor = Brand.blue
+        let sub = NSTextField(labelWithString: "Document Camera & PDF Scanner")
+        sub.font = .systemFont(ofSize: 13); sub.textColor = .secondaryLabelColor
+
+        let bullets = NSTextField(wrappingLabelWithString:
+            "•  Use your iPhone or iPad as a document camera\n•  Zoom, freeze, rotate & flip\n•  Snapshot to image or clipboard\n•  Scan pages to one PDF\n•  Annotate with pen & highlighter")
+        bullets.font = .systemFont(ofSize: 13)
+
+        let plans = NSStackView(); plans.orientation = .vertical; plans.spacing = 8; plans.alignment = .centerX
+        if Store.shared.products.isEmpty {
+            plans.addArrangedSubview(NSTextField(labelWithString: "Loading plans…"))
+        } else {
+            for (i, p) in Store.shared.products.enumerated() {
+                let b = NSButton(title: planTitle(p), target: self, action: #selector(buy(_:)))
+                b.bezelStyle = .rounded; b.controlSize = .large; b.tag = i
+                b.widthAnchor.constraint(equalToConstant: 300).isActive = true
+                plans.addArrangedSubview(b)
+            }
+        }
+        let restore = NSButton(title: "Restore Purchases", target: self, action: #selector(restoreTapped))
+        restore.isBordered = false; restore.contentTintColor = Brand.blue
+        let note = NSTextField(wrappingLabelWithString:
+            "Educators: email for a 50%-off code and redeem it in the App Store. A free version is also available on GitHub. Subscriptions renew until cancelled; manage them in the App Store.")
+        note.font = .systemFont(ofSize: 10); note.textColor = .tertiaryLabelColor; note.alignment = .center
+
+        let root = NSStackView(views: [icon, title, sub, bullets, plans, restore, note])
+        root.orientation = .vertical; root.alignment = .centerX; root.spacing = 10
+        root.setCustomSpacing(16, after: bullets)
+        root.edgeInsets = NSEdgeInsets(top: 26, left: 26, bottom: 18, right: 26)
+        root.translatesAutoresizingMaskIntoConstraints = false
+        cv.addSubview(root)
+        NSLayoutConstraint.activate([
+            root.leadingAnchor.constraint(equalTo: cv.leadingAnchor),
+            root.trailingAnchor.constraint(equalTo: cv.trailingAnchor),
+            root.topAnchor.constraint(equalTo: cv.topAnchor),
+        ])
+        w.layoutIfNeeded()
+        w.setContentSize(NSSize(width: 420, height: max(root.fittingSize.height, 440)))
+    }
+    private func planTitle(_ p: Product) -> String {
+        if let intro = p.subscription?.introductoryOffer, intro.paymentMode == .freeTrial {
+            return "Start Free Trial — then \(p.displayPrice)"
+        }
+        return "Subscribe — \(p.displayPrice)"
+    }
+    @objc private func buy(_ sender: NSButton) {
+        guard sender.tag < Store.shared.products.count else { return }
+        let p = Store.shared.products[sender.tag]
+        Task { _ = await Store.shared.purchase(p) }
+    }
+    @objc private func restoreTapped() { Task { await Store.shared.restore() } }
+    // Can't close the paywall without subscribing.
+    func windowShouldClose(_ sender: NSWindow) -> Bool { false }
+}
+#endif  // APP_STORE
+
 // MARK: - About window
 
 final class AboutWindow: NSObject, NSWindowDelegate {
@@ -549,8 +689,16 @@ final class AboutWindow: NSObject, NSWindowDelegate {
         tagline.alignment = .center
         wrap(tagline)
 
-        // ── Support (Ko-fi) — cosmetic supporter badge, no feature gating ──
+        // ── Support block ──
         let supportBlock: NSStackView
+#if APP_STORE
+        // App Store build: subscription management, no Ko-fi.
+        let manage = linkButton("Manage Subscription", #selector(manageSubscription))
+        let restore = linkButton("Restore Purchases", #selector(restorePurchases))
+        restore.font = .systemFont(ofSize: 11)
+        supportBlock = NSStackView(views: [manage, restore])
+#else
+        // GitHub build: cosmetic supporter badge (Ko-fi), no feature gating.
         if Support.isSupporter {
             let badge = NSTextField(labelWithString: "💙  Supporter — thank you!")
             badge.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -580,13 +728,18 @@ final class AboutWindow: NSObject, NSWindowDelegate {
 
             supportBlock = NSStackView(views: [nudge, kofi, mark])
         }
+#endif
         supportBlock.orientation = .vertical
         supportBlock.alignment = .centerX
         supportBlock.spacing = 8
 
         let github = linkButton("View on GitHub", #selector(openGitHub))
+#if APP_STORE
+        let links = NSStackView(views: [github])   // App Store handles updates
+#else
         let updates = linkButton("Check for Updates…", #selector(checkUpdates))
         let links = NSStackView(views: [github, updates])
+#endif
         links.orientation = .horizontal
         links.spacing = 18
 
@@ -648,6 +801,12 @@ final class AboutWindow: NSObject, NSWindowDelegate {
         if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
     }
     @objc private func openGitHub() { if let u = URL(string: repoURL) { NSWorkspace.shared.open(u) } }
+#if APP_STORE
+    @objc private func restorePurchases() { Task { await Store.shared.restore() } }
+    @objc private func manageSubscription() {
+        if let u = URL(string: "macappstore://apps.apple.com/account/subscriptions") { NSWorkspace.shared.open(u) }
+    }
+#else
     @objc private func checkUpdates() { Updater.check(userInitiated: true) }
     @objc private func openKofi() { if let u = URL(string: kofiURL) { NSWorkspace.shared.open(u) } }
     @objc private func markSupporter() {
@@ -658,6 +817,7 @@ final class AboutWindow: NSObject, NSWindowDelegate {
             self.show()                            // rebuild to show the supporter badge
         }
     }
+#endif
 }
 
 // MARK: - Settings window
@@ -884,12 +1044,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             }
         }
 
+#if APP_STORE
+        // Gate the app behind an active subscription (a free trial counts as active).
+        Store.shared.onChange = { [weak self] in self?.updateAccess() }
+        Store.shared.start()
+        updateAccess()
+#else
         checkPermissionAndStart()
+#endif
 
         if Settings.startFullScreen {
             DispatchQueue.main.async { self.window.toggleFullScreen(nil) }
         }
     }
+
+#if APP_STORE
+    private var cameraStarted = false
+    /// Called on launch and whenever the subscription state changes: reveal the app when
+    /// subscribed, otherwise block it behind the paywall.
+    private func updateAccess() {
+        if Store.shared.isSubscribed {
+            Paywall.shared.close()
+            window.makeKeyAndOrderFront(nil)
+            if !cameraStarted { cameraStarted = true; checkPermissionAndStart() }
+        } else {
+            window.orderOut(nil)
+            Paywall.shared.show()
+        }
+    }
+#endif
 
     // Keep running in the menu bar after the window is closed.
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
@@ -945,8 +1128,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
         add(appMenu, "About \(appName)", #selector(showAbout))
+#if APP_STORE
+        add(appMenu, "Restore Purchases", #selector(restoreSub))
+#else
         add(appMenu, "Check for Updates…", #selector(checkForUpdates))
         add(appMenu, "Support the Developer…", #selector(openKofi))
+#endif
         appMenu.addItem(.separator())
         add(appMenu, "Settings…", #selector(openSettings), ",", [.command])
         appMenu.addItem(.separator())
@@ -1025,8 +1212,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         m.addItem(.separator())
         add(m, "Settings…", #selector(openSettings))
         add(m, "About \(appName)", #selector(showAbout))
+#if !APP_STORE
         add(m, "Check for Updates…", #selector(checkForUpdates))
         add(m, "Support the Developer…", #selector(openKofi))
+#endif
         m.addItem(.separator())
         add(m, "Quit \(appName)", #selector(NSApplication.terminate(_:)))
         statusItem.menu = m
@@ -1403,8 +1592,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func openSettings() { SettingsWindow.shared.show(owner: self) }
     @objc private func showAbout() { AboutWindow.shared.show() }
+#if APP_STORE
+    @objc private func restoreSub() { Task { await Store.shared.restore() } }
+#else
     @objc private func checkForUpdates() { Updater.check(userInitiated: true) }
     @objc private func openKofi() { if let u = URL(string: kofiURL) { NSWorkspace.shared.open(u) } }
+#endif
 }
 
 let app = NSApplication.shared

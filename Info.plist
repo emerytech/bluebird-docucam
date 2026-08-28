@@ -17,5 +17,7 @@
     <key>LSApplicationCategoryType</key><string>public.app-category.education</string>
     <key>NSHumanReadableCopyright</key><string>© 2026 Taylor Emery — ETS3D LLC. All rights reserved.</string>
     <key>NSCameraUsageDescription</key><string>BlueBird DocuCam shows your document camera on the screen.</string>
+    <!-- Only standard HTTPS (StoreKit / updates) — exempt from export compliance. -->
+    <key>ITSAppUsesNonExemptEncryption</key><false/>
 </dict>
 </plist>
