@@ -72,6 +72,10 @@ if $MAS; then
        && security find-identity -v -p codesigning | grep -qF "$MAS_APP_CERT" \
        && security find-identity -v -p basic       | grep -qF "$MAS_INSTALLER_CERT"; then
         cp "$MAS_PROFILE" "$APP/Contents/embedded.provisionprofile"
+        # Strip com.apple.quarantine (and any other xattrs) BEFORE signing — the
+        # downloaded .provisionprofile carries it, which App Store upload rejects
+        # (ITMS-91109). Do it before codesign so the seal covers clean files.
+        xattr -cr "$APP"
         codesign --force --timestamp \
                  --entitlements "$HERE/entitlements-mas.plist" \
                  --sign "$MAS_APP_CERT" "$APP"
