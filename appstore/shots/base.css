@@ -1,0 +1,124 @@
+/* App Store screenshot design system — BlueBird DocuCam
+   Rendered at 1280x800 logical (Chrome --force-device-scale-factor=2 -> 2560x1600). */
+:root{
+  --brand:#296BEB;
+  --brand-deep:#123f96;
+  --ink:#1d2330;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:1280px;height:800px;overflow:hidden;background:#000;
+  font-family:-apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+.stage{width:1280px;height:800px;position:relative;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
+.stage.blue{background:radial-gradient(125% 95% at 50% -12%, #3f80f2 0%, #245ecb 44%, #143f96 100%);}
+.stage.light{background:linear-gradient(180deg,#eef4ff 0%,#d7e4ff 100%);}
+.stage.deep{background:radial-gradient(120% 100% at 50% 120%, #2f6fe6 0%, #17398a 55%, #0f2b6b 100%);}
+
+/* headline */
+.headline{width:100%;text-align:center;padding:58px 90px 0;z-index:3;}
+.headline h1{font-size:57px;font-weight:800;letter-spacing:-1.7px;line-height:1.06;}
+.headline p{font-size:24px;font-weight:500;margin-top:16px;line-height:1.3;}
+.stage.blue .headline h1,.stage.deep .headline h1{color:#fff;}
+.stage.blue .headline p,.stage.deep .headline p{color:#d7e6ff;}
+.stage.light .headline h1{color:#122a63;}
+.stage.light .headline p{color:#3f5488;}
+.headline .accent{color:#8fd0ff;}
+.stage.light .headline .accent{color:var(--brand);}
+
+/* app window */
+.window{width:952px;border-radius:18px;background:#0d0f13;overflow:hidden;position:relative;
+  box-shadow:0 46px 120px rgba(4,16,48,.5), 0 8px 26px rgba(0,0,0,.35);}
+.window.bleed{margin-top:auto;height:492px;border-radius:20px 20px 0 0;margin-bottom:-1px;}
+.window.float{margin-top:38px;height:452px;}
+.titlebar{height:46px;background:linear-gradient(#3b3e46,#2a2d33);display:flex;align-items:center;padding:0 18px;position:relative;z-index:2;}
+.dots{display:flex;gap:9px;}
+.dot{width:13px;height:13px;border-radius:50%;}
+.dot.r{background:#ff5f57;}.dot.y{background:#febc2e;}.dot.g{background:#28c840;}
+.title{position:absolute;left:0;right:0;text-align:center;font-size:14.5px;font-weight:600;color:#cfd3dc;pointer-events:none;}
+.title b{color:#fff;font-weight:700;}
+.viewer{position:absolute;top:46px;left:0;right:0;bottom:0;
+  background:radial-gradient(135% 130% at 50% 28%, #262a33 0%, #15171d 68%, #0d0f13 100%);
+  display:flex;align-items:center;justify-content:center;}
+
+/* projected page */
+.paper{background:#fff;border-radius:5px;position:relative;
+  box-shadow:0 26px 64px rgba(0,0,0,.55), 0 5px 14px rgba(0,0,0,.4);}
+.page-portrait{width:360px;height:466px;padding:30px 32px;}
+
+/* worksheet content */
+.ws-h{font-size:22px;font-weight:800;color:#16233f;letter-spacing:-.3px;}
+.ws-rule{height:3px;background:var(--brand);width:70px;border-radius:2px;margin:9px 0 14px;}
+.ws-meta{font-size:12.5px;color:#7c8598;display:flex;justify-content:space-between;margin-bottom:16px;}
+.ws-list{list-style:none;display:flex;flex-direction:column;gap:15px;}
+.ws-list li{font-size:18px;color:#20304d;display:flex;align-items:center;gap:10px;font-weight:600;}
+.frac{display:inline-flex;flex-direction:column;text-align:center;line-height:1;font-size:15px;vertical-align:middle;}
+.frac span:first-child{border-bottom:2px solid #20304d;padding:0 3px 2px;}
+.frac span:last-child{padding-top:2px;}
+.op{font-weight:700;color:#4a5a78;}
+.blank{flex:1;border-bottom:2px dotted #b9c2d4;height:1px;align-self:flex-end;margin-bottom:5px;min-width:40px;}
+.ws-figs{display:flex;gap:22px;margin-top:22px;justify-content:center;}
+.pie{width:74px;height:74px;border-radius:50%;border:3px solid #20304d;}
+
+/* badges — match the in-app translucent pills */
+.badge{position:absolute;top:16px;background:rgba(16,18,24,.74);color:#fff;font-size:16px;font-weight:600;
+  padding:8px 14px;border-radius:11px;display:flex;align-items:center;gap:8px;}
+.badge .ic{font-size:15px;}
+.badge.tl{left:16px;}
+.badge.tr{right:16px;}
+.badge.brand{background:rgba(41,107,235,.92);}
+
+/* annotation toolbar */
+.anno{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+  background:rgba(16,18,24,.82);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:12px;}
+.swatch{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.85);}
+.anno .tool{color:#dfe4ee;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.anno .sep{width:1px;height:20px;background:rgba(255,255,255,.2);}
+
+/* feature chips */
+.chips{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:26px;z-index:3;}
+.chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#eaf1ff;
+  font-size:19px;font-weight:600;padding:12px 20px;border-radius:999px;display:flex;align-items:center;gap:9px;}
+.stage.light .chip{background:#fff;border-color:#c9d8f5;color:#1b3a78;box-shadow:0 6px 18px rgba(30,70,160,.12);}
+.chip .ic{font-size:19px;}
+
+/* trailing device/pdf art */
+.pdf-stack{position:absolute;right:34px;bottom:30px;width:150px;height:186px;}
+.pdf-pg{position:absolute;width:118px;height:150px;background:#fff;border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.4);}
+.pdf-tag{position:absolute;right:0;bottom:0;background:#e8402e;color:#fff;font-weight:800;font-size:16px;
+  padding:7px 12px;border-radius:9px;box-shadow:0 8px 20px rgba(0,0,0,.35);}
+
+/* hero: iPhone-as-camera */
+.combo{position:relative;margin-top:34px;display:flex;align-items:flex-end;justify-content:center;width:100%;height:470px;}
+.combo .window.float{margin-top:0;width:820px;height:430px;}
+.iphone{position:absolute;right:150px;bottom:8px;width:158px;height:322px;background:#05070c;border-radius:32px;
+  box-shadow:0 34px 74px rgba(0,10,40,.55);border:3px solid #262a33;padding:7px;z-index:4;}
+.iphone .scr{width:100%;height:100%;border-radius:25px;overflow:hidden;position:relative;
+  background:radial-gradient(120% 120% at 50% 25%,#262a33,#0f1116);display:flex;align-items:center;justify-content:center;}
+.iphone .notch{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:52px;height:15px;background:#000;border-radius:9px;z-index:3;}
+.iphone .paper{transform:scale(.34);}
+.link-pill{position:absolute;left:50%;top:52%;transform:translate(-42%,-50%);z-index:5;
+  background:rgba(41,107,235,.96);color:#fff;font-weight:700;font-size:16px;padding:10px 16px;border-radius:999px;
+  display:flex;align-items:center;gap:8px;box-shadow:0 14px 34px rgba(20,50,140,.5);}
+.link-pill .ic{font-size:16px;}
+
+/* annotation ink overlay */
+.ink{position:absolute;inset:0;pointer-events:none;}
+
+/* fit the projected page inside the viewer (dark doc-cam surround) */
+.viewer > .paper{transform:scale(.82);transform-origin:center;}
+.viewer > .paper.big{transform:scale(.9);}
+
+/* reading passage document */
+.passage{padding:30px 34px;}
+.passage p{font-size:15px;line-height:1.62;color:#2a3550;margin-bottom:13px;}
+.passage em{font-style:normal;font-weight:700;color:var(--brand);}
+
+/* annotation ink (lives inside .paper so it scales with the page) */
+.hl{position:absolute;background:rgba(255,213,0,.5);border-radius:3px;}
+.pen-u{position:absolute;border-bottom:3px solid #ff3b30;border-radius:2px;}
+.circle-red{position:absolute;border:3.5px solid #ff3b30;border-radius:50%;}
+.checkmark{position:absolute;color:#12b76a;font-size:34px;font-weight:800;transform:rotate(8deg);}
+.arrow-red{position:absolute;color:#ff3b30;font-size:30px;font-weight:800;}
+
+/* zoom loupe framing */
+.viewer.zoom > .paper{transform:scale(1.55);transform-origin:38% 42%;}
