@@ -517,13 +517,15 @@ private extension String {
 import StoreKit
 
 let subProductIDs = ["com.emerytech.BlueBirdDocuCam.yearly", "com.emerytech.BlueBirdDocuCam.monthly"]
+let lifetimeProductID = "com.emerytech.BlueBirdDocuCam.lifetime"   // non-consumable: buy once, own forever
 
 /// Subscription state. Plain class (not @MainActor) so the AppKit AppDelegate can touch it
 /// freely; all published state is written back on the main actor, where the UI reads it.
 final class Store {
     static let shared = Store()
-    private(set) var products: [Product] = []
-    private(set) var isSubscribed = false
+    private(set) var products: [Product] = []       // subscriptions (monthly, yearly)
+    private(set) var lifetimeProduct: Product?      // non-consumable lifetime unlock
+    private(set) var isUnlocked = false             // active subscription OR owns lifetime
     var onChange: (() -> Void)?
     private var updatesTask: Task<Void, Never>?
 
@@ -537,18 +539,23 @@ final class Store {
         Task { await loadProducts(); await refresh() }
     }
     func loadProducts() async {
-        let loaded = ((try? await Product.products(for: subProductIDs)) ?? []).sorted { $0.price < $1.price }
-        await MainActor.run { self.products = loaded; self.onChange?() }
+        let all = (try? await Product.products(for: subProductIDs + [lifetimeProductID])) ?? []
+        let subs = all.filter { subProductIDs.contains($0.id) }.sorted { $0.price < $1.price }
+        let life = all.first { $0.id == lifetimeProductID }
+        await MainActor.run { self.products = subs; self.lifetimeProduct = life; self.onChange?() }
     }
     func refresh() async {
         var active = false
         for await result in Transaction.currentEntitlements {
-            guard case .verified(let t) = result, subProductIDs.contains(t.productID), t.revocationDate == nil
-            else { continue }
-            if let exp = t.expirationDate { if exp > Date() { active = true } } else { active = true }
+            guard case .verified(let t) = result, t.revocationDate == nil else { continue }
+            if t.productID == lifetimeProductID {
+                active = true                                       // non-consumable: owned forever
+            } else if subProductIDs.contains(t.productID) {
+                if let exp = t.expirationDate { if exp > Date() { active = true } } else { active = true }
+            }
         }
         let resolved = active
-        await MainActor.run { self.isSubscribed = resolved; self.onChange?() }
+        await MainActor.run { self.isUnlocked = resolved; self.onChange?() }
     }
     @discardableResult
     func purchase(_ product: Product) async -> Bool {
@@ -561,7 +568,8 @@ final class Store {
     func restore() async { try? await AppStore.sync(); await refresh() }
 }
 
-/// Blocks the app until there's an active subscription (a free trial counts as active).
+/// Blocks the app until it's unlocked — an active subscription (a free trial counts) or the
+/// one-time lifetime purchase.
 final class Paywall: NSObject, NSWindowDelegate {
     static let shared = Paywall()
     private var window: NSWindow?
@@ -610,15 +618,33 @@ final class Paywall: NSObject, NSWindowDelegate {
                 plans.addArrangedSubview(b)
             }
         }
+        // One-time lifetime unlock (non-consumable), shown beneath the subscriptions.
+        let lifetime: NSView
+        if let lp = Store.shared.lifetimeProduct {
+            let orLbl = NSTextField(labelWithString: "— or —")
+            orLbl.font = .systemFont(ofSize: 11, weight: .medium); orLbl.textColor = .tertiaryLabelColor
+            let lb = NSButton(title: "Unlock Forever — \(lp.displayPrice)", target: self, action: #selector(buyLifetime))
+            lb.bezelStyle = .rounded; lb.controlSize = .large
+            lb.widthAnchor.constraint(equalToConstant: 300).isActive = true
+            let oneTime = NSTextField(labelWithString: "One-time purchase · no subscription")
+            oneTime.font = .systemFont(ofSize: 10); oneTime.textColor = .tertiaryLabelColor
+            let s = NSStackView(views: [orLbl, lb, oneTime])
+            s.orientation = .vertical; s.alignment = .centerX; s.spacing = 6
+            lifetime = s
+        } else {
+            lifetime = NSView()
+        }
+
         let restore = NSButton(title: "Restore Purchases", target: self, action: #selector(restoreTapped))
         restore.isBordered = false; restore.contentTintColor = Brand.blue
         let note = NSTextField(wrappingLabelWithString:
-            "Educators: email for a 50%-off code and redeem it in the App Store. A free version is also available on GitHub. Subscriptions renew until cancelled; manage them in the App Store.")
+            "Educators: email for a 50%-off code and redeem it in the App Store. A free version is also available on GitHub. Subscriptions renew until cancelled; the lifetime unlock is a one-time purchase. Manage purchases in the App Store.")
         note.font = .systemFont(ofSize: 10); note.textColor = .tertiaryLabelColor; note.alignment = .center
 
-        let root = NSStackView(views: [icon, title, sub, bullets, plans, restore, note])
+        let root = NSStackView(views: [icon, title, sub, bullets, plans, lifetime, restore, note])
         root.orientation = .vertical; root.alignment = .centerX; root.spacing = 10
         root.setCustomSpacing(16, after: bullets)
+        root.setCustomSpacing(14, after: plans)
         root.edgeInsets = NSEdgeInsets(top: 26, left: 26, bottom: 18, right: 26)
         root.translatesAutoresizingMaskIntoConstraints = false
         cv.addSubview(root)
@@ -640,6 +666,10 @@ final class Paywall: NSObject, NSWindowDelegate {
         guard sender.tag < Store.shared.products.count else { return }
         let p = Store.shared.products[sender.tag]
         Task { _ = await Store.shared.purchase(p) }
+    }
+    @objc private func buyLifetime() {
+        guard let lp = Store.shared.lifetimeProduct else { return }
+        Task { _ = await Store.shared.purchase(lp) }
     }
     @objc private func restoreTapped() { Task { await Store.shared.restore() } }
     // Can't close the paywall without subscribing.
@@ -1063,7 +1093,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// Called on launch and whenever the subscription state changes: reveal the app when
     /// subscribed, otherwise block it behind the paywall.
     private func updateAccess() {
-        if Store.shared.isSubscribed {
+        if Store.shared.isUnlocked {
             Paywall.shared.close()
             window.makeKeyAndOrderFront(nil)
             if !cameraStarted { cameraStarted = true; checkPermissionAndStart() }
