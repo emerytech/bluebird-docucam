@@ -1,0 +1,61 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+  :root{ --brand:#296BEB; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1000px;height:1200px;overflow:hidden;
+    font-family:-apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  .stage{width:1000px;height:1200px;background:radial-gradient(120% 90% at 50% -10%,#eef4ff 0%,#dae6ff 60%,#c9dbff 100%);
+    display:flex;align-items:center;justify-content:center;}
+  /* paywall window */
+  .win{width:560px;background:#fff;border-radius:22px;overflow:hidden;
+    box-shadow:0 50px 120px rgba(20,50,120,.28), 0 8px 24px rgba(0,0,0,.12);}
+  .titlebar{height:52px;background:linear-gradient(#f4f6fa,#e9edf3);display:flex;align-items:center;padding:0 20px;position:relative;border-bottom:1px solid #e3e8f0;}
+  .dots{display:flex;gap:10px;} .dot{width:14px;height:14px;border-radius:50%;}
+  .dot.r{background:#ff5f57;}.dot.y{background:#febc2e;}.dot.g{background:#28c840;}
+  .body{padding:34px 46px 40px;text-align:center;}
+  .icon{width:96px;height:96px;border-radius:22px;margin:0 auto 16px;display:block;
+    background:
+      radial-gradient(circle at 34% 34%, #6fb0ff 0 22%, transparent 23%),
+      linear-gradient(150deg,#2f6fe6,#123f96);
+    box-shadow:0 12px 26px rgba(20,50,120,.35);position:relative;}
+  .icon:after{content:"🐦";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:46px;filter:grayscale(1) brightness(3);}
+  h1{font-size:30px;font-weight:800;color:var(--brand);letter-spacing:-.5px;}
+  .sub{font-size:15px;color:#6b7280;margin-top:4px;}
+  .bullets{text-align:left;display:inline-block;margin:20px auto 4px;font-size:15px;color:#26313f;line-height:1.9;}
+  .bullets b{color:var(--brand);font-weight:700;}
+  .btns{display:flex;flex-direction:column;gap:11px;margin-top:22px;align-items:center;}
+  .btn{width:360px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:16px;font-weight:600;border:1px solid #cfdbf0;background:#f5f8fe;color:#1b3a78;}
+  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand);box-shadow:0 8px 20px rgba(41,107,235,.3);}
+  .divider{display:flex;align-items:center;gap:12px;color:#9aa4b2;font-size:13px;font-weight:600;margin:8px 0;width:360px;}
+  .divider:before,.divider:after{content:"";flex:1;height:1px;background:#dbe2ee;}
+  .btn.lifetime{background:#0e1a2f;color:#fff;border-color:#0e1a2f;}
+  .onetime{font-size:12px;color:#9aa4b2;margin-top:2px;}
+  .restore{margin-top:16px;color:var(--brand);font-size:14px;font-weight:600;}
+  .note{margin-top:12px;font-size:11px;color:#aab3c0;line-height:1.5;max-width:400px;margin-left:auto;margin-right:auto;}
+</style></head>
+<body><div class="stage">
+  <div class="win">
+    <div class="titlebar"><div class="dots"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i></div></div>
+    <div class="body">
+      <div class="icon"></div>
+      <h1>BlueBird DocuCam</h1>
+      <div class="sub">Document Camera &amp; PDF Scanner</div>
+      <div class="bullets">
+        •&nbsp; Use your <b>iPhone or iPad</b> as a document camera<br>
+        •&nbsp; Zoom, freeze, rotate &amp; flip<br>
+        •&nbsp; Snapshot to image or clipboard<br>
+        •&nbsp; Scan pages to one PDF<br>
+        •&nbsp; Annotate with pen &amp; highlighter
+      </div>
+      <div class="btns">
+        <div class="btn primary">Start Free Trial — then $0.99/mo</div>
+        <div class="btn">Start Free Trial — then $4.99/yr</div>
+        <div class="divider">or</div>
+        <div class="btn lifetime">Unlock Forever — $19.99</div>
+        <div class="onetime">One-time purchase · no subscription</div>
+      </div>
+      <div class="restore">Restore Purchases</div>
+      <div class="note">Free for 30 days, then subscribe or unlock forever. A free version is also on GitHub. Subscriptions renew until cancelled; the lifetime unlock is a one-time purchase.</div>
+    </div>
+  </div>
+</div></body></html>
