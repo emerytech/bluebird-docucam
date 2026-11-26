@@ -1,0 +1,2618 @@
+{
+  "AFG": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "AGO": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "AIA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "ALB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "ARE": {
+    "currency": "AED",
+    "lifetime": {
+      "regular": "119.99",
+      "sale": "89.99"
+    },
+    "monthly": {
+      "regular": "4.99",
+      "sale": "4.99"
+    },
+    "yearly": {
+      "regular": "29.99",
+      "sale": "22.99"
+    }
+  },
+  "ARG": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "ARM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "ATG": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "AUS": {
+    "currency": "AUD",
+    "lifetime": {
+      "regular": "49.99",
+      "sale": "34.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "1.99"
+    },
+    "yearly": {
+      "regular": "12.99",
+      "sale": "9.99"
+    }
+  },
+  "AUT": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "AZE": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "BEL": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "BEN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "BFA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "BGR": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "BHR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "BHS": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "BIH": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "BLR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "BLZ": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "BMU": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "BOL": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "BRA": {
+    "currency": "BRL",
+    "lifetime": {
+      "regular": "199.9",
+      "sale": "149.9"
+    },
+    "monthly": {
+      "regular": "9.9",
+      "sale": "6.9"
+    },
+    "yearly": {
+      "regular": "49.9",
+      "sale": "39.9"
+    }
+  },
+  "BRB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "BRN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "BTN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "BWA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "CAN": {
+    "currency": "CAD",
+    "lifetime": {
+      "regular": "39.99",
+      "sale": "29.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "7.99"
+    }
+  },
+  "CHE": {
+    "currency": "CHF",
+    "lifetime": {
+      "regular": "25.0",
+      "sale": "20.0"
+    },
+    "monthly": {
+      "regular": "1.0",
+      "sale": "1.0"
+    },
+    "yearly": {
+      "regular": "7.0",
+      "sale": "5.0"
+    }
+  },
+  "CHL": {
+    "currency": "CLP",
+    "lifetime": {
+      "regular": "34990",
+      "sale": "24990"
+    },
+    "monthly": {
+      "regular": "1990",
+      "sale": "990"
+    },
+    "yearly": {
+      "regular": "9990",
+      "sale": "6990"
+    }
+  },
+  "CHN": {
+    "currency": "CNY",
+    "lifetime": {
+      "regular": "198.0"
+    },
+    "monthly": {
+      "regular": "12.0",
+      "sale": "8.0"
+    },
+    "yearly": {
+      "regular": "58.0",
+      "sale": "38.0"
+    }
+  },
+  "CIV": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "CMR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "COD": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "COG": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "COL": {
+    "currency": "COP",
+    "lifetime": {
+      "regular": "129900.0"
+    },
+    "monthly": {
+      "regular": "7900.0",
+      "sale": "4900.0"
+    },
+    "yearly": {
+      "regular": "39900.0",
+      "sale": "29900.0"
+    }
+  },
+  "CPV": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "CRI": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "CYM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "CYP": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "CZE": {
+    "currency": "CZK",
+    "lifetime": {
+      "regular": "799.0",
+      "sale": "599.0"
+    },
+    "monthly": {
+      "regular": "39.0",
+      "sale": "29.0"
+    },
+    "yearly": {
+      "regular": "199.0",
+      "sale": "149.0"
+    }
+  },
+  "DEU": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "DMA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "DNK": {
+    "currency": "DKK",
+    "lifetime": {
+      "regular": "249.0",
+      "sale": "199.0"
+    },
+    "monthly": {
+      "regular": "9.0",
+      "sale": "9.0"
+    },
+    "yearly": {
+      "regular": "69.0",
+      "sale": "49.0"
+    }
+  },
+  "DOM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "DZA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "ECU": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "EGY": {
+    "currency": "EGP",
+    "lifetime": {
+      "regular": "1499.99",
+      "sale": "1199.99"
+    },
+    "monthly": {
+      "regular": "79.99",
+      "sale": "59.99"
+    },
+    "yearly": {
+      "regular": "399.99",
+      "sale": "299.99"
+    }
+  },
+  "ESP": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "EST": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "FIN": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "FJI": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "FRA": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "FSM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "GAB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "GBR": {
+    "currency": "GBP",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.99"
+    },
+    "monthly": {
+      "regular": "0.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "GEO": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "GHA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "GMB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "GNB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "GRC": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "GRD": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "GTM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "GUY": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "HKG": {
+    "currency": "HKD",
+    "lifetime": {
+      "regular": "228.0",
+      "sale": "188.0"
+    },
+    "monthly": {
+      "regular": "12.0",
+      "sale": "8.0"
+    },
+    "yearly": {
+      "regular": "58.0",
+      "sale": "48.0"
+    }
+  },
+  "HND": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "HRV": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "HUN": {
+    "currency": "HUF",
+    "lifetime": {
+      "regular": "12990",
+      "sale": "9990"
+    },
+    "monthly": {
+      "regular": "499",
+      "sale": "499"
+    },
+    "yearly": {
+      "regular": "3490",
+      "sale": "2490"
+    }
+  },
+  "IDN": {
+    "currency": "IDR",
+    "lifetime": {
+      "regular": "599000",
+      "sale": "449000"
+    },
+    "monthly": {
+      "regular": "29000",
+      "sale": "19000"
+    },
+    "yearly": {
+      "regular": "149000",
+      "sale": "119000"
+    }
+  },
+  "IND": {
+    "currency": "INR",
+    "lifetime": {
+      "regular": "2999.0",
+      "sale": "2299.0"
+    },
+    "monthly": {
+      "regular": "149.0",
+      "sale": "99.0"
+    },
+    "yearly": {
+      "regular": "799.0",
+      "sale": "599.0"
+    }
+  },
+  "IRL": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "IRQ": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "ISL": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "ISR": {
+    "currency": "ILS",
+    "lifetime": {
+      "regular": "99.9",
+      "sale": "69.9"
+    },
+    "monthly": {
+      "regular": "4.9",
+      "sale": "2.9"
+    },
+    "yearly": {
+      "regular": "24.9",
+      "sale": "19.9"
+    }
+  },
+  "ITA": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "JAM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "JOR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "JPN": {
+    "currency": "JPY",
+    "lifetime": {
+      "regular": "5000",
+      "sale": "3500"
+    },
+    "monthly": {
+      "regular": "200",
+      "sale": "200"
+    },
+    "yearly": {
+      "regular": "1300",
+      "sale": "1000"
+    }
+  },
+  "KAZ": {
+    "currency": "KZT",
+    "lifetime": {
+      "regular": "17990.0",
+      "sale": "12990.0"
+    },
+    "monthly": {
+      "regular": "999.0",
+      "sale": "499.0"
+    },
+    "yearly": {
+      "regular": "4990.0",
+      "sale": "3490.0"
+    }
+  },
+  "KEN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "KGZ": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "KHM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "KNA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "KOR": {
+    "currency": "KRW",
+    "lifetime": {
+      "regular": "49000",
+      "sale": "39000"
+    },
+    "monthly": {
+      "regular": "2200",
+      "sale": "2200"
+    },
+    "yearly": {
+      "regular": "12000",
+      "sale": "9900"
+    }
+  },
+  "KWT": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "LAO": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "LBN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "LBR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "LBY": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "LCA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "LKA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "LTU": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "LUX": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "LVA": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "MAC": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MAR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "MDA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "MDG": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MDV": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MEX": {
+    "currency": "MXN",
+    "lifetime": {
+      "regular": "599.0",
+      "sale": "499.0"
+    },
+    "monthly": {
+      "regular": "29.0",
+      "sale": "19.0"
+    },
+    "yearly": {
+      "regular": "179.0",
+      "sale": "129.0"
+    }
+  },
+  "MKD": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MLI": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MLT": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "MMR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MNE": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "29.99"
+    },
+    "monthly": {
+      "regular": "0.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "6.99",
+      "sale": "5.99"
+    }
+  },
+  "MNG": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MOZ": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MRT": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MSR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MUS": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "MWI": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "MYS": {
+    "currency": "MYR",
+    "lifetime": {
+      "regular": "129.9"
+    },
+    "monthly": {
+      "regular": "4.9",
+      "sale": "4.9"
+    },
+    "yearly": {
+      "regular": "39.9",
+      "sale": "29.9"
+    }
+  },
+  "NAM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "NER": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "NGA": {
+    "currency": "NGN",
+    "lifetime": {
+      "regular": "49900.0",
+      "sale": "39900.0"
+    },
+    "monthly": {
+      "regular": "2500.0",
+      "sale": "1900.0"
+    },
+    "yearly": {
+      "regular": "12900.0",
+      "sale": "9900.0"
+    }
+  },
+  "NIC": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "NLD": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "NOR": {
+    "currency": "NOK",
+    "lifetime": {
+      "regular": "399.0",
+      "sale": "299.0"
+    },
+    "monthly": {
+      "regular": "19.0",
+      "sale": "9.0"
+    },
+    "yearly": {
+      "regular": "99.0",
+      "sale": "79.0"
+    }
+  },
+  "NPL": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "NRU": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "NZL": {
+    "currency": "NZD",
+    "lifetime": {
+      "regular": "49.99"
+    },
+    "monthly": {
+      "regular": "2.99",
+      "sale": "1.99"
+    },
+    "yearly": {
+      "regular": "14.99",
+      "sale": "9.99"
+    }
+  },
+  "OMN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "PAK": {
+    "currency": "PKR",
+    "lifetime": {
+      "regular": "7900.0",
+      "sale": "5900.0"
+    },
+    "monthly": {
+      "regular": "400.0",
+      "sale": "300.0"
+    },
+    "yearly": {
+      "regular": "2200.0",
+      "sale": "1700.0"
+    }
+  },
+  "PAN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "PER": {
+    "currency": "PEN",
+    "lifetime": {
+      "regular": "129.9",
+      "sale": "99.9"
+    },
+    "monthly": {
+      "regular": "7.9",
+      "sale": "4.9"
+    },
+    "yearly": {
+      "regular": "34.9",
+      "sale": "24.9"
+    }
+  },
+  "PHL": {
+    "currency": "PHP",
+    "lifetime": {
+      "regular": "1990.0",
+      "sale": "1490.0"
+    },
+    "monthly": {
+      "regular": "99.0",
+      "sale": "79.0"
+    },
+    "yearly": {
+      "regular": "499.0",
+      "sale": "399.0"
+    }
+  },
+  "PLW": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "PNG": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "POL": {
+    "currency": "PLN",
+    "lifetime": {
+      "regular": "129.99"
+    },
+    "monthly": {
+      "regular": "4.99",
+      "sale": "4.99"
+    },
+    "yearly": {
+      "regular": "39.99",
+      "sale": "29.99"
+    }
+  },
+  "PRT": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "PRY": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "QAT": {
+    "currency": "QAR",
+    "lifetime": {
+      "regular": "99.99",
+      "sale": "79.99"
+    },
+    "monthly": {
+      "regular": "4.99",
+      "sale": "2.99"
+    },
+    "yearly": {
+      "regular": "29.99",
+      "sale": "19.99"
+    }
+  },
+  "ROU": {
+    "currency": "RON",
+    "lifetime": {
+      "regular": "149.99",
+      "sale": "119.99"
+    },
+    "monthly": {
+      "regular": "9.99",
+      "sale": "4.99"
+    },
+    "yearly": {
+      "regular": "39.99",
+      "sale": "29.99"
+    }
+  },
+  "RUS": {
+    "currency": "RUB",
+    "lifetime": {
+      "regular": "2490.0",
+      "sale": "1990.0"
+    },
+    "monthly": {
+      "regular": "149.0",
+      "sale": "99.0"
+    },
+    "yearly": {
+      "regular": "699.0",
+      "sale": "499.0"
+    }
+  },
+  "RWA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "SAU": {
+    "currency": "SAR",
+    "lifetime": {
+      "regular": "129.99",
+      "sale": "99.99"
+    },
+    "monthly": {
+      "regular": "4.99",
+      "sale": "4.99"
+    },
+    "yearly": {
+      "regular": "34.99",
+      "sale": "24.99"
+    }
+  },
+  "SEN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "SGP": {
+    "currency": "SGD",
+    "lifetime": {
+      "regular": "39.98"
+    },
+    "monthly": {
+      "regular": "1.98",
+      "sale": "1.98"
+    },
+    "yearly": {
+      "regular": "9.98",
+      "sale": "8.98"
+    }
+  },
+  "SLB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "SLE": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "SLV": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "SRB": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "STP": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "SUR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "SVK": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "SVN": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "SWE": {
+    "currency": "SEK",
+    "lifetime": {
+      "regular": "399.0",
+      "sale": "299.0"
+    },
+    "monthly": {
+      "regular": "19.0",
+      "sale": "19.0"
+    },
+    "yearly": {
+      "regular": "99.0",
+      "sale": "79.0"
+    }
+  },
+  "SWZ": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "SYC": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "TCA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "TCD": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "THA": {
+    "currency": "THB",
+    "lifetime": {
+      "regular": "999.0",
+      "sale": "799.0"
+    },
+    "monthly": {
+      "regular": "49.0",
+      "sale": "49.0"
+    },
+    "yearly": {
+      "regular": "299.0",
+      "sale": "199.0"
+    }
+  },
+  "TJK": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "TKM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "TON": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "TTO": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "TUN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "TUR": {
+    "currency": "TRY",
+    "lifetime": {
+      "regular": "1499.99",
+      "sale": "1199.99"
+    },
+    "monthly": {
+      "regular": "79.99",
+      "sale": "59.99"
+    },
+    "yearly": {
+      "regular": "399.99",
+      "sale": "299.99"
+    }
+  },
+  "TWN": {
+    "currency": "TWD",
+    "lifetime": {
+      "regular": "990"
+    },
+    "monthly": {
+      "regular": "50",
+      "sale": "30"
+    },
+    "yearly": {
+      "regular": "290",
+      "sale": "190"
+    }
+  },
+  "TZA": {
+    "currency": "TZS",
+    "lifetime": {
+      "regular": "89900.0"
+    },
+    "monthly": {
+      "regular": "3900.0",
+      "sale": "2900.0"
+    },
+    "yearly": {
+      "regular": "22900.0",
+      "sale": "17900.0"
+    }
+  },
+  "UGA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "UKR": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "URY": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "USA": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "UZB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "VCT": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "VEN": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "VGB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "VNM": {
+    "currency": "VND",
+    "lifetime": {
+      "regular": "999000",
+      "sale": "699000"
+    },
+    "monthly": {
+      "regular": "49000",
+      "sale": "29000"
+    },
+    "yearly": {
+      "regular": "249000",
+      "sale": "199000"
+    }
+  },
+  "VUT": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "XKS": {
+    "currency": "EUR",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "8.99",
+      "sale": "6.99"
+    }
+  },
+  "YEM": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "29.99",
+      "sale": "22.49"
+    },
+    "monthly": {
+      "regular": "1.49",
+      "sale": "1.09"
+    },
+    "yearly": {
+      "regular": "7.99",
+      "sale": "5.99"
+    }
+  },
+  "ZAF": {
+    "currency": "ZAR",
+    "lifetime": {
+      "regular": "599.99",
+      "sale": "499.99"
+    },
+    "monthly": {
+      "regular": "29.99",
+      "sale": "19.99"
+    },
+    "yearly": {
+      "regular": "149.99",
+      "sale": "119.99"
+    }
+  },
+  "ZMB": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  },
+  "ZWE": {
+    "currency": "USD",
+    "lifetime": {
+      "regular": "34.99",
+      "sale": "24.99"
+    },
+    "monthly": {
+      "regular": "1.99",
+      "sale": "0.99"
+    },
+    "yearly": {
+      "regular": "9.99",
+      "sale": "6.99"
+    }
+  }
+}

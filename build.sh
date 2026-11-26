@@ -61,6 +61,7 @@ cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # ── Mac App Store path ─────────────────────────────────────────────────────────
 if $MAS; then
+    cp "$HERE"/appstore/{paywall.css,black-friday-2026.json,shots/app-icon.png} "$APP/Contents/Resources/"
     PKG="$HERE/BlueBird-DocuCam-MAS.pkg"
     # The MAS signing assets (created 2026-08-28; see docs/APP_STORE.md). Override any
     # of these via env or .env. The certs are the legacy Mac-specific distribution

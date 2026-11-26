@@ -615,6 +615,7 @@ private extension String {
 
 #if APP_STORE
 import StoreKit
+import WebKit
 
 let subProductIDs = ["com.emerytech.BlueBirdDocuCam.yearly", "com.emerytech.BlueBirdDocuCam.monthly"]
 let lifetimeProductID = "com.emerytech.BlueBirdDocuCam.lifetime"   // non-consumable: buy once, own forever
@@ -624,6 +625,7 @@ let lifetimeProductID = "com.emerytech.BlueBirdDocuCam.lifetime"   // non-consum
 final class Store {
     static let shared = Store()
     private(set) var products: [Product] = []
+    private(set) var countryCode: String?
     private(set) var lifetimeProduct: Product?
     private(set) var eligibleIntroIDs = Set<String>()
     private(set) var isUnlocked = false
@@ -655,13 +657,14 @@ final class Store {
         Task { await loadProducts(); await refresh() }
     }
     func loadProducts() async {
+        let country = await Storefront.current?.countryCode
         let all = (try? await Product.products(for: subProductIDs + [lifetimeProductID])) ?? []
         let subs = all.filter { subProductIDs.contains($0.id) }.sorted { $0.price < $1.price }
         let life = all.first { $0.id == lifetimeProductID }
         var eligible = Set<String>()
         for p in subs { if let s = p.subscription, await s.isEligibleForIntroOffer { eligible.insert(p.id) } }
         let ids = eligible
-        await MainActor.run { self.products = subs; self.lifetimeProduct = life; self.eligibleIntroIDs = ids; self.onChange?() }
+        await MainActor.run { self.countryCode = country; self.products = subs; self.lifetimeProduct = life; self.eligibleIntroIDs = ids; self.onChange?() }
     }
     func refresh() async {
         // Serialize refreshes; rerun if a transaction arrives during a refresh.
@@ -797,7 +800,7 @@ final class Store {
 
 /// Blocks the app until it's unlocked — an active subscription (a free trial counts) or the
 /// one-time lifetime purchase.
-final class Paywall: NSObject, NSWindowDelegate {
+final class Paywall: NSObject, NSWindowDelegate, WKNavigationDelegate {
     static let shared = Paywall()
     private var window: NSWindow?
     private var dismissed = false
@@ -821,107 +824,112 @@ final class Paywall: NSObject, NSWindowDelegate {
         w.isReleasedWhenClosed = false; w.level = .normal; w.delegate = self
         return w
     }
+    private struct Offer: Decodable { let sale: String?; let regular: String? }
+    private struct Territory: Decodable {
+        let currency: String
+        let monthly: Offer?
+        let yearly: Offer?
+        let lifetime: Offer?
+    }
+    private static let references: [String: Territory] = {
+        guard let url = Bundle.main.url(forResource: "black-friday-2026", withExtension: "json"),
+              let data = try? Data(contentsOf: url) else { return [:] }
+        return (try? JSONDecoder().decode([String: Territory].self, from: data)) ?? [:]
+    }()
+    private var web: WKWebView?
+    private static let css = Bundle.main.url(forResource: "paywall", withExtension: "css")
+        .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+    private static let icon = Bundle.main.url(forResource: "app-icon", withExtension: "png")
+        .flatMap { try? Data(contentsOf: $0) }?.base64EncodedString() ?? ""
+
     private func buildBody(in w: NSWindow) {
         guard let cv = w.contentView else { return }
-        cv.subviews.forEach { $0.removeFromSuperview() }
-
-        let icon = NSImageView(); icon.image = NSApp.applicationIconImage
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([icon.widthAnchor.constraint(equalToConstant: 82),
-                                     icon.heightAnchor.constraint(equalToConstant: 82)])
-        let title = NSTextField(labelWithString: appName)
-        title.font = .systemFont(ofSize: 22, weight: .bold); title.textColor = Brand.blue
-        let sub = NSTextField(labelWithString: "Document Camera & PDF Scanner")
-        sub.font = .systemFont(ofSize: 13); sub.textColor = .secondaryLabelColor
-
-        let bullets = NSTextField(wrappingLabelWithString:
-            "•  Use your iPhone or iPad as a document camera\n•  Zoom, freeze, rotate & flip\n•  Snapshot to image or clipboard\n•  Scan pages to one PDF\n•  Annotate with pen & highlighter")
-        bullets.font = .systemFont(ofSize: 13)
-
-        let plans = NSStackView(); plans.orientation = .vertical; plans.spacing = 8; plans.alignment = .centerX
-        if Store.shared.products.isEmpty {
-            plans.addArrangedSubview(NSTextField(labelWithString: "Loading plans…"))
-        } else {
-            for (i, p) in Store.shared.products.enumerated() {
-                let b = NSButton(title: planTitle(p), target: self, action: #selector(buy(_:)))
-                b.bezelStyle = .rounded; b.controlSize = .large; b.tag = i
-                b.widthAnchor.constraint(equalToConstant: 364).isActive = true
-                b.cell?.wraps = true
-                b.heightAnchor.constraint(greaterThanOrEqualToConstant: 42).isActive = true
-                plans.addArrangedSubview(b)
+        let view: WKWebView
+        if let web { view = web } else {
+            let config = WKWebViewConfiguration()
+            config.websiteDataStore = .nonPersistent()
+            config.defaultWebpagePreferences.allowsContentJavaScript = false
+            view = WKWebView(frame: cv.bounds, configuration: config)
+            view.autoresizingMask = [.width, .height]
+            view.navigationDelegate = self
+            cv.addSubview(view)
+            web = view
+        }
+        let day = Calendar(identifier: .gregorian).dateComponents([.year,.month,.day], from: Date())
+        let sale = day.year == 2026 && day.month == 11 && (26...30).contains(day.day ?? 0)
+        let store = Store.shared
+        let products = store.products + [store.lifetimeProduct].compactMap { $0 }
+        let territory = Self.references[store.countryCode ?? ""]
+        var cards = ""
+        for p in products {
+            let lifetime = p.id == lifetimeProductID
+            let annual = p.id == subProductIDs[0]
+            let name = lifetime ? "Lifetime" : annual ? "Annual" : "Monthly"
+            let unit = lifetime ? "" : annual ? " / yr" : " / mo"
+            let period = annual ? "year" : "month"
+            var detail = lifetime ? "One-time purchase" : "Billed every " + period
+            var later = ""
+            let offer = lifetime ? territory?.lifetime : annual ? territory?.yearly : territory?.monthly
+            if sale, (day.day ?? 0) >= (lifetime ? 27 : 28),
+               territory?.currency == p.priceFormatStyle.currencyCode,
+               let current = offer?.sale.flatMap({ Decimal(string: $0) }), current == p.price,
+               let regular = offer?.regular.flatMap({ Decimal(string: $0) }), regular > current {
+                let savings = (regular - current).formatted(p.priceFormatStyle)
+                detail = "Save " + savings + (lifetime ? " · Pay once" : " per " + period)
+                later = "<span class=later>" + regular.formatted(p.priceFormatStyle) + unit + " from Dec 1</span>"
             }
+            var action = lifetime ? "Unlock forever" : "Subscribe"
+            if store.eligibleIntroIDs.contains(p.id), let intro = p.subscription?.introductoryOffer, intro.paymentMode == .freeTrial {
+                action = "Start trial"
+                if intro.period.unit == .week && intro.period.value == 2 || intro.period.unit == .day && intro.period.value == 14 {
+                    action = "Start 14-day trial"
+                } else { detail += " · " + Store.period(intro.period) + " free" }
+            }
+            cards += """
+            <div class=card><div><b>\(name)</b><small>\(detail)</small></div>
+            <div><span class=price>\(p.displayPrice)</span>\(unit)\(later)</div>
+            <a class=action href="docucam://buy/\(p.id)">\(action)</a></div>
+            """
         }
-        // One-time lifetime unlock (non-consumable), shown beneath the subscriptions.
-        let lifetime: NSView
-        if let lp = Store.shared.lifetimeProduct {
-            let orLbl = NSTextField(labelWithString: "— or —")
-            orLbl.font = .systemFont(ofSize: 11, weight: .medium); orLbl.textColor = .tertiaryLabelColor
-            let lb = NSButton(title: "Unlock Forever — \(lp.displayPrice)", target: self, action: #selector(buyLifetime))
-            lb.bezelStyle = .rounded; lb.controlSize = .large
-            lb.widthAnchor.constraint(equalToConstant: 300).isActive = true
-            let oneTime = NSTextField(labelWithString: "One-time purchase · no subscription")
-            oneTime.font = .systemFont(ofSize: 10); oneTime.textColor = .tertiaryLabelColor
-            let s = NSStackView(views: [orLbl, lb, oneTime])
-            s.orientation = .vertical; s.alignment = .centerX; s.spacing = 6
-            lifetime = s
-        } else {
-            lifetime = NSView()
-        }
-
-        let restore = NSButton(title: "Restore Purchases", target: self, action: #selector(restoreTapped))
-        restore.isBordered = false; restore.contentTintColor = Brand.blue
-        // Required subscription disclosure links (App Store Guideline 3.1.2): a functional
-        // Terms of Use (Apple standard EULA) link + a Privacy Policy link, shown in the app.
-        let terms = NSButton(title: "Terms of Use", target: self, action: #selector(openTerms))
-        terms.isBordered = false; terms.contentTintColor = Brand.blue; terms.font = .systemFont(ofSize: 11)
-        let privacy = NSButton(title: "Privacy Policy", target: self, action: #selector(openPrivacy))
-        privacy.isBordered = false; privacy.contentTintColor = Brand.blue; privacy.font = .systemFont(ofSize: 11)
-        let dot = NSTextField(labelWithString: "·")
-        dot.font = .systemFont(ofSize: 11); dot.textColor = .tertiaryLabelColor
-        let legal = NSStackView(views: [terms, dot, privacy])
-        legal.orientation = .horizontal; legal.spacing = 6; legal.alignment = .centerY
-        let note = NSTextField(wrappingLabelWithString:
-            "Plans and eligible free-trial terms are shown above using current App Store pricing. If eligible for a free trial, payment begins when the trial ends. Otherwise payment is charged at purchase confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the period ends. Manage or cancel in your App Store subscription settings. Apple confirms all terms before purchase. Lifetime unlock is a one-time purchase. Educators: email for a 50%-off code.")
-        note.font = .systemFont(ofSize: 10); note.textColor = .tertiaryLabelColor; note.alignment = .center
-
-        var items: [NSView] = [icon, title, sub, bullets]
-        let day = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: Date())
-        if day.year == 2026, day.month == 11, (26...30).contains(day.day ?? 0) {
-            let sale = NSTextField(wrappingLabelWithString: "Black Friday ends November 30\nLifetime pricing runs Nov 27–30. Monthly and annual subscription pricing runs Nov 28–30. Subscribe at the sale price and keep that rate while your subscription stays active. Eligible free trials are still available.")
-            sale.alignment = .center
-            sale.font = .systemFont(ofSize: 13, weight: .medium)
-            sale.preferredMaxLayoutWidth = 408
-            sale.widthAnchor.constraint(equalToConstant: 408).isActive = true
-            items.append(sale)
-        }
-        let root = NSStackView(views: items + [plans, lifetime, restore, legal, note])
-        root.orientation = .vertical; root.alignment = .centerX; root.spacing = 10
-        root.setCustomSpacing(16, after: bullets)
-        root.setCustomSpacing(14, after: plans)
-        root.edgeInsets = NSEdgeInsets(top: 26, left: 26, bottom: 18, right: 26)
-        root.translatesAutoresizingMaskIntoConstraints = false
-        cv.addSubview(root)
-        NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: cv.leadingAnchor),
-            root.trailingAnchor.constraint(equalTo: cv.trailingAnchor),
-            root.topAnchor.constraint(equalTo: cv.topAnchor),
-        ])
-        bullets.preferredMaxLayoutWidth = 408; note.preferredMaxLayoutWidth = 408
-        bullets.widthAnchor.constraint(equalToConstant: 408).isActive = true
-        note.widthAnchor.constraint(equalToConstant: 408).isActive = true
-        w.setContentSize(NSSize(width: 460, height: 600))
-        w.layoutIfNeeded()
-        w.setContentSize(NSSize(width: 460, height: max(root.fittingSize.height, 440)))
+        if cards.isEmpty { cards = "<p>Loading App Store prices…</p><a href='docucam://retry'>Reload plans</a>" }
+        let html = """
+        <!doctype html><meta charset=utf-8><meta name="color-scheme" content="light">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
+        <style>\(Self.css)</style><main><header><div class=brand><img alt="" src="data:image/png;base64,\(Self.icon)">BlueBird DocuCam</div>
+        <h1>\(sale ? "Black Friday pricing" : "Choose your plan")</h1>
+        <p>\(sale ? "Choose your plan by November 30." : "Present, annotate, scan and record on your Mac.")</p></header><article>
+        <h2>\(sale ? "Keep your subscription rate" : "Unlock BlueBird DocuCam")</h2>
+        <p class=intro>\(sale ? "Subscribe at the sale price and keep that rate while your plan stays active." : "Choose a subscription or get lifetime access with one purchase.")</p>
+        \(cards)
+        \(sale ? "<p class=legal>December 1 subscription prices apply to new signups. Subscription pricing runs Nov 28–30. Lifetime pricing runs Nov 27–30.</p>" : "")
+        <p class=legal>For eligible subscribers, payment starts after the free trial. Otherwise, Apple charges at purchase confirmation. Subscriptions renew automatically unless canceled at least 24 hours before renewal. Manage your subscription in your Apple account settings.</p>
+        <div class=links><a href="docucam://restore">Restore Purchases</a><a href="docucam://terms">Terms of Use</a><a href="docucam://privacy">Privacy Policy</a></div></article></main>
+        """
+        let screen = w.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size ?? NSSize(width: 760, height: 710)
+        w.setContentSize(NSSize(width: min(760, screen.width), height: min(sale ? 710 : 650, screen.height)))
+        view.loadHTMLString(html, baseURL: nil)
     }
-    private func planTitle(_ p: Product) -> String { Store.shared.planTitle(p) }
-    @objc private func buy(_ sender: NSButton) {
-        guard sender.tag < Store.shared.products.count else { return }
-        let p = Store.shared.products[sender.tag]
-        Task { _ = await Store.shared.purchase(p) }
-    }
-    @objc private func buyLifetime() {
-        guard let lp = Store.shared.lifetimeProduct else { return }
-        Task { _ = await Store.shared.purchase(lp) }
+
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let url = action.request.url, action.navigationType == .linkActivated else {
+            decisionHandler(action.request.url?.absoluteString == "about:blank" ? .allow : .cancel)
+            return
+        }
+        decisionHandler(.cancel)
+        guard url.scheme == "docucam" else { return }
+        switch url.host {
+        case "restore": restoreTapped()
+        case "terms": openTerms()
+        case "privacy": openPrivacy()
+        case "retry": Task { await Store.shared.loadProducts() }
+        case "buy":
+            let products = Store.shared.products + [Store.shared.lifetimeProduct].compactMap { $0 }
+            if let p = products.first(where: { $0.id == url.lastPathComponent }) {
+                Task { _ = await Store.shared.purchase(p) }
+            }
+        default: break
+        }
     }
     @objc private func restoreTapped() { Task { await Store.shared.restore() } }
     @objc private func openTerms() {
