@@ -1,7 +1,7 @@
 # BlueBird DocuCam — App Store listing copy
 
-Paste-ready text for App Store Connect. Screenshots are in `appstore/shots/shot1–5.png`
-(2560×1600, the accepted macOS size). Suggested order: 1 → 5 as numbered.
+Paste-ready text for App Store Connect. Screenshots are in `appstore/shots/shot1–6.png`
+(2560×1600, the accepted macOS size). Suggested order: 1 → 6 as numbered.
 
 ---
 
@@ -12,36 +12,31 @@ BlueBird DocuCam
 Document Camera & PDF Scanner
 
 ## Promotional Text  *(170 char max — editable anytime without review)*
-Turn your Mac and iPhone into a classroom document camera. Project any page full‑screen, freeze and annotate, scan to PDF, and zoom in — no extra hardware.
+Black Friday ends Nov 30. US prices: lifetime $22.49 Nov 27–30. Subscribe Nov 28–30 for $1.09/month or $5.99/year. Keep your rate while your subscription stays active.
 
 ## Keywords  *(100 char max, comma‑separated; “document/camera/scanner” already indexed from the name+subtitle)*
 doc cam,visualizer,classroom,teacher,projector,elmo,annotate,continuity,whiteboard,overhead,scan
 
 ## Description
 
-BlueBird DocuCam turns your Mac into a dead‑simple document camera — and your iPhone or iPad into the camera itself. It’s built for teachers who just want to show a worksheet, a book page, or a hands‑on demo on the big screen, without wrestling clunky hardware or overkill software.
+Show the page on your desk to everyone in the room. BlueBird DocuCam turns your Mac into a full-screen document camera for worksheets, books, and hands-on demonstrations. Connect a USB document camera, select a built-in camera, or use a compatible iPhone with Apple Continuity Camera.
 
-Open it, point a camera at the page, and it fills the screen. That’s it.
+Teach from the page
+Zoom in on a diagram or a line of fine print. Freeze the frame to underline a word, circle a detail, or highlight a passage, then return to the live camera. Classroom presets let you bring back the view you use between lessons.
 
-**Use your iPhone or iPad as the camera**
-With Continuity Camera, your iPhone or iPad becomes a sharp, high‑resolution document camera — no cart, no cables, nothing extra to buy. Any USB or built‑in camera works too, and it auto‑connects the moment you plug one in.
+Make a handout from paper
+Capture pages in sequence and save them together as a PDF. For a single image, save a snapshot or copy the frame to the clipboard.
 
-**Project any page, full‑screen**
-Crisp, edge‑to‑edge output for your projector or classroom TV. BlueBird DocuCam remembers your camera and settings between classes, so you’re ready to teach in seconds.
+Record a demonstration
+Save a lesson as a movie in a folder you choose on your Mac. Open the recording in a Mac video player to revisit the demonstration later.
 
-**Freeze and annotate**
-Freeze the current frame to talk over it, then draw right on the page with a pen or highlighter in any color. Wipe it clean and go live again in a tap.
+Purchase options
+Choose a monthly or annual subscription, or unlock lifetime access with a one-time purchase. Eligible subscribers can start with a 14-day free trial. The app shows your local price and trial eligibility before purchase.
 
-**Scan straight to PDF**
-Capture page after page and save the whole set as a single PDF — perfect for handouts, worksheets, and forms.
+Apple charges your account when you confirm a purchase or when an eligible free trial ends. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period. Manage or cancel in your App Store account settings.
 
-**Zoom, rotate, flip, snapshot**
-Zoom in on the fine print, rotate or flip the image to fix upside‑down or mirrored text, and snapshot any frame to an image file or the clipboard.
-
-**Simple by design**
-No accounts. No clutter. No learning curve. Just the document‑camera tools a classroom actually needs, in a clean, native Mac app.
-
-Start with a 30‑day free trial — no commitment. Keep going with an affordable monthly or yearly subscription, and cancel anytime.
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://emerytech.github.io/bluebird-docucam/privacy.html
 
 ## What’s New  *(first release)*
 The first release of BlueBird DocuCam for Mac. Turn your Mac and iPhone into a classroom document camera — project full‑screen, freeze and annotate, scan pages to PDF, and zoom in on any detail.
@@ -59,11 +54,12 @@ The first release of BlueBird DocuCam for Mac. Turn your Mac and iPhone into a c
 ## Screenshots
 | # | File | Message |
 |---|------|---------|
-| 1 | shot1.png | iPhone as the document camera (the hook) |
-| 2 | shot2.png | Project any page, full‑screen |
+| 1 | shot1.png | USB document camera or iPhone via Apple Continuity Camera |
+| 2 | shot2.png | USB document camera on a bigger classroom display |
 | 3 | shot3.png | Freeze & annotate |
 | 4 | shot4.png | Scan pages into one PDF |
 | 5 | shot5.png | Zoom, rotate, flip, snapshot |
+| 6 | shot6.png | Record lessons, save videos on your Mac, watch later |
 
 > These are designed marketing screenshots that faithfully reproduce the app’s real UI
 > (blue theme, the “⏸ Paused” and page‑count badges, the annotation toolbar). Once the app
