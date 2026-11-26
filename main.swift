@@ -633,6 +633,7 @@ final class Store {
     private(set) var billingIssue = false
     private(set) var summary = "Checking your App Store subscription…"
     var onChange: (() -> Void)?
+    private var saleDayObserver: NSObjectProtocol?
     private var updatesTask: Task<Void, Never>?
     private var refreshInFlight = false
     private var refreshAgain = false
@@ -647,6 +648,9 @@ final class Store {
                 }
                 await self?.refresh()
             }
+        }
+        saleDayObserver = NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
+            Task { await self?.loadProducts() }
         }
         Task { await loadProducts(); await refresh() }
     }
@@ -697,8 +701,12 @@ final class Store {
                     else { freeTrial = t.offerPaymentModeStringRepresentation == "FREE_TRIAL" }
                     let exp = t.expirationDate!
                     if freeTrial { end = exp }
-                    let price = products.first(where: { $0.id == r.autoRenewPreference }) ?? products.first(where: { $0.id == t.productID })
-                    let terms = price.map(Self.recurringPrice) ?? "See Apple's subscription settings for renewal pricing"
+                    var terms = "See Apple’s subscription settings for your renewal price."
+                    if let amount = r.renewalPrice, let currency = r.currency,
+                       let product = products.first(where: { $0.id == (r.autoRenewPreference ?? t.productID) }),
+                       let period = product.subscription?.subscriptionPeriod {
+                        terms = "\(amount.formatted(.currency(code: currency.identifier))) / \(Self.period(period))"
+                    }
                     text = freeTrial ? "Your free trial ends \(Self.date(exp))." : "Subscription access through \(Self.date(exp))."
                     text += r.willAutoRenew ? "\nRenews automatically: \(terms). Apple confirms the final renewal terms." : "\nAuto-renew is off. Access continues until the date above; no renewal is scheduled."
                 } else if status.state == .inBillingRetryPeriod {
@@ -876,7 +884,17 @@ final class Paywall: NSObject, NSWindowDelegate {
             "Plans and eligible free-trial terms are shown above using current App Store pricing. If eligible for a free trial, payment begins when the trial ends. Otherwise payment is charged at purchase confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the period ends. Manage or cancel in your App Store subscription settings. Apple confirms all terms before purchase. Lifetime unlock is a one-time purchase. Educators: email for a 50%-off code.")
         note.font = .systemFont(ofSize: 10); note.textColor = .tertiaryLabelColor; note.alignment = .center
 
-        let root = NSStackView(views: [icon, title, sub, bullets, plans, lifetime, restore, legal, note])
+        var items: [NSView] = [icon, title, sub, bullets]
+        let day = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: Date())
+        if day.year == 2026, day.month == 11, (26...30).contains(day.day ?? 0) {
+            let sale = NSTextField(wrappingLabelWithString: "Black Friday ends November 30\nLifetime pricing runs Nov 27–30. Monthly and annual subscription pricing runs Nov 28–30. Subscribe at the sale price and keep that rate while your subscription stays active. Eligible free trials are still available.")
+            sale.alignment = .center
+            sale.font = .systemFont(ofSize: 13, weight: .medium)
+            sale.preferredMaxLayoutWidth = 408
+            sale.widthAnchor.constraint(equalToConstant: 408).isActive = true
+            items.append(sale)
+        }
+        let root = NSStackView(views: items + [plans, lifetime, restore, legal, note])
         root.orientation = .vertical; root.alignment = .centerX; root.spacing = 10
         root.setCustomSpacing(16, after: bullets)
         root.setCustomSpacing(14, after: plans)
