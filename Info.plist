@@ -8,8 +8,8 @@
     <key>CFBundleExecutable</key><string>BlueBirdDocuCam</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.2.2</string>
-    <key>CFBundleVersion</key><string>8</string>
+    <key>CFBundleShortVersionString</key><string>1.4.1</string>
+    <key>CFBundleVersion</key><string>17</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>NSHighResolutionCapable</key><true/>
@@ -17,6 +17,7 @@
     <key>LSApplicationCategoryType</key><string>public.app-category.education</string>
     <key>NSHumanReadableCopyright</key><string>© 2026 Taylor Emery — ETS3D LLC. All rights reserved.</string>
     <key>NSCameraUsageDescription</key><string>BlueBird DocuCam shows your document camera on the screen.</string>
+    <key>NSMicrophoneUsageDescription</key><string>BlueBird DocuCam records your narration when you record the document camera.</string>
     <!-- Only standard HTTPS (StoreKit / updates) — exempt from export compliance. -->
     <key>ITSAppUsesNonExemptEncryption</key><false/>
 </dict>

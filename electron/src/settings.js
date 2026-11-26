@@ -37,6 +37,10 @@ async function render() {
   startfs.checked = !!s.startFullScreen
   startfs.onchange = () => window.api.setSetting('startFullScreen', startfs.checked)
 
+  const participate = document.getElementById('installCount')
+  participate.checked = s.participatesInInstallCount !== false
+  participate.onchange = () => window.api.setSetting('participatesInInstallCount', participate.checked)
+
   const hideptr = document.getElementById('hideptr')
   hideptr.checked = s.hidePointerFullScreen !== false
   hideptr.onchange = () => window.api.setSetting('hidePointerFullScreen', hideptr.checked)

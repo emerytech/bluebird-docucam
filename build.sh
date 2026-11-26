@@ -48,8 +48,8 @@ ZIP="$HERE/BlueBird-DocuCam.zip"
 rm -rf "$BUILD"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "Compiling arm64…${SWIFT_FLAGS:+ ($SWIFT_FLAGS)}"
-swiftc -O $SWIFT_FLAGS -target "arm64-apple-macos$MIN_MACOS" main.swift -o "$BUILD/$EXECNAME-arm64"
-if swiftc -O $SWIFT_FLAGS -target "x86_64-apple-macos$MIN_MACOS" main.swift -o "$BUILD/$EXECNAME-x86_64" 2>/dev/null; then
+swiftc -O $SWIFT_FLAGS -target "arm64-apple-macos$MIN_MACOS" main.swift RetentionModels.swift -o "$BUILD/$EXECNAME-arm64"
+if swiftc -O $SWIFT_FLAGS -target "x86_64-apple-macos$MIN_MACOS" main.swift RetentionModels.swift -o "$BUILD/$EXECNAME-x86_64" 2>/dev/null; then
     echo "Compiling x86_64… ok — universal binary"
     lipo -create -output "$APP/Contents/MacOS/$EXECNAME" "$BUILD/$EXECNAME-arm64" "$BUILD/$EXECNAME-x86_64"
 else

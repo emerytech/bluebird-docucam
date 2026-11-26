@@ -35,7 +35,6 @@ async function render() {
     support.appendChild(mark)
   }
 
-  document.getElementById('github').onclick = () => window.api.openExternal(info.repoURL)
   document.getElementById('updates').onclick = () => window.api.checkUpdates()
 }
 

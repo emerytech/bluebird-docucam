@@ -7,12 +7,13 @@ import CoreVideo
 import CoreImage
 import QuartzCore
 import ServiceManagement
+import Vision
+import IOKit.pwr_mgt
 
 // MARK: - Brand / constants
 
 let appName = "BlueBird DocuCam"
 let appCopyright = "© 2026 Taylor Emery — ETS3D LLC. All rights reserved."
-let repoURL = "https://github.com/emerytech/bluebird-docucam"
 let releasesURL = "https://github.com/emerytech/bluebird-docucam/releases/latest"
 let latestReleaseAPI = "https://api.github.com/repos/emerytech/bluebird-docucam/releases/latest"
 let kofiURL = "https://ko-fi.com/ets3d"
@@ -36,6 +37,42 @@ enum Settings {
     static var hidePointerFullScreen: Bool {
         get { d.object(forKey: "hidePointerFullScreen") == nil ? true : d.bool(forKey: "hidePointerFullScreen") }
         set { d.set(newValue, forKey: "hidePointerFullScreen") }
+    }
+    /// Launch to the menu bar with no visible window (pairs with Open at login).
+    static var startMinimized: Bool {
+        get { d.bool(forKey: "startMinimized") }
+        set { d.set(newValue, forKey: "startMinimized") }
+    }
+    /// Begin recording automatically once the camera is live after launch.
+    static var autoStartRecording: Bool {
+        get { d.bool(forKey: "autoStartRecording") }
+        set { d.set(newValue, forKey: "autoStartRecording") }
+    }
+    /// Where finished recordings go, as a security-scoped bookmark so a user-chosen folder
+    /// (including a mounted network share) survives relaunch and the App Sandbox.
+    /// nil ⇒ ~/Downloads.
+    static var recordFolderBookmark: Data? {
+        get { d.data(forKey: "recordFolderBookmark") }
+        set {
+            if let v = newValue { d.set(v, forKey: "recordFolderBookmark") }
+            else { d.removeObject(forKey: "recordFolderBookmark") }
+        }
+    }
+    // Security-scoped bookmarks are mandatory under the sandbox (MAS build) and a harmless
+    // no-op in the Developer ID build, so the options differ only by build flavor.
+    static var bookmarkCreateOptions: URL.BookmarkCreationOptions {
+        #if APP_STORE
+        return [.withSecurityScope]
+        #else
+        return []
+        #endif
+    }
+    static var bookmarkResolveOptions: URL.BookmarkResolutionOptions {
+        #if APP_STORE
+        return [.withSecurityScope]
+        #else
+        return []
+        #endif
     }
     /// Launch-at-login is owned by the system (SMAppService), not UserDefaults.
     static var launchAtLoginEnabled: Bool { SMAppService.mainApp.status == .enabled }
@@ -65,6 +102,7 @@ final class PreviewView: NSView {
     let annotationView = AnnotationView()
     private let messageLabel = NSTextField(labelWithString: "")
     private let pauseBadge = NSView()
+    private let recBadge = NSView()
     private let scanBadge = NSView()
     private let scanBadgeLabel = NSTextField(labelWithString: "")
 
@@ -86,6 +124,7 @@ final class PreviewView: NSView {
         }
     }
     var frozen = false { didSet { freezeLayer.isHidden = !frozen; pauseBadge.isHidden = !frozen } }
+    var recording = false { didSet { recBadge.isHidden = !recording } }
     var zoom: CGFloat = 1 { didSet { needsLayout = true } }
     var panOffset = CGPoint.zero { didSet { needsLayout = true } }
     private var lastDrag: CGPoint?
@@ -177,6 +216,37 @@ final class PreviewView: NSView {
             scanStack.bottomAnchor.constraint(equalTo: scanBadge.bottomAnchor, constant: -6),
             scanIcon.widthAnchor.constraint(equalToConstant: 14),
             scanIcon.heightAnchor.constraint(equalToConstant: 12),
+        ])
+
+        // Recording indicator — red pill, top-center, shown while recording.
+        recBadge.wantsLayer = true
+        recBadge.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.92).cgColor
+        recBadge.layer?.cornerRadius = 9
+        recBadge.isHidden = true
+        recBadge.translatesAutoresizingMaskIntoConstraints = false
+        let recDot = NSView()
+        recDot.wantsLayer = true
+        recDot.layer?.backgroundColor = NSColor.white.cgColor
+        recDot.layer?.cornerRadius = 4
+        recDot.translatesAutoresizingMaskIntoConstraints = false
+        let recLabel = NSTextField(labelWithString: "REC")
+        recLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        recLabel.textColor = .white
+        let recStack = NSStackView(views: [recDot, recLabel])
+        recStack.orientation = .horizontal
+        recStack.spacing = 6
+        recStack.translatesAutoresizingMaskIntoConstraints = false
+        recBadge.addSubview(recStack)
+        addSubview(recBadge)
+        NSLayoutConstraint.activate([
+            recBadge.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+            recBadge.centerXAnchor.constraint(equalTo: centerXAnchor),
+            recStack.leadingAnchor.constraint(equalTo: recBadge.leadingAnchor, constant: 11),
+            recStack.trailingAnchor.constraint(equalTo: recBadge.trailingAnchor, constant: -11),
+            recStack.topAnchor.constraint(equalTo: recBadge.topAnchor, constant: 6),
+            recStack.bottomAnchor.constraint(equalTo: recBadge.bottomAnchor, constant: -6),
+            recDot.widthAnchor.constraint(equalToConstant: 8),
+            recDot.heightAnchor.constraint(equalToConstant: 8),
         ])
     }
 
@@ -312,6 +382,36 @@ final class AnnotationView: NSView {
 }
 
 #if !APP_STORE   // GitHub build only: self-update + Ko-fi. The App Store build strips both.
+
+// Direct builds report unless the user opts out in Settings.
+private enum InstallCount {
+    static let preference = "participatesInInstallCount"
+    static var enabled: Bool { UserDefaults.standard.object(forKey: preference) as? Bool ?? true }
+    private static var inFlight = false
+    private static let session = URLSession(configuration: .ephemeral)
+
+    static func checkIn() {
+        let defaults = UserDefaults.standard
+        guard enabled, !inFlight else { return }
+        if let last = defaults.object(forKey: "installCountLastSuccess") as? Date,
+           (0..<86400).contains(Date().timeIntervalSince(last)) { return }
+        let id = defaults.string(forKey: "installCountID") ?? UUID().uuidString.lowercased()
+        defaults.set(id, forKey: "installCountID")
+        var request = URLRequest(url: URL(string: "https://docucam-install-count.taylor-c24.workers.dev/v1/check-in")!)
+        request.httpMethod = "POST"
+        request.httpBody = Data(id.utf8)
+        request.timeoutInterval = 15
+        inFlight = true
+        session.dataTask(with: request) { _, response, _ in
+            DispatchQueue.main.async {
+                inFlight = false
+                if (response as? HTTPURLResponse)?.statusCode == 204 {
+                    defaults.set(Date(), forKey: "installCountLastSuccess")
+                }
+            }
+        }.resume()
+    }
+}
 
 // MARK: - Updater (lightweight: checks the GitHub latest release)
 
@@ -523,16 +623,28 @@ let lifetimeProductID = "com.emerytech.BlueBirdDocuCam.lifetime"   // non-consum
 /// freely; all published state is written back on the main actor, where the UI reads it.
 final class Store {
     static let shared = Store()
-    private(set) var products: [Product] = []       // subscriptions (monthly, yearly)
-    private(set) var lifetimeProduct: Product?      // non-consumable lifetime unlock
-    private(set) var isUnlocked = false             // active subscription OR owns lifetime
+    private(set) var products: [Product] = []
+    private(set) var lifetimeProduct: Product?
+    private(set) var eligibleIntroIDs = Set<String>()
+    private(set) var isUnlocked = false
+    private(set) var ownsLifetime = false
+    private(set) var trialEnd: Date?
+    private(set) var renews = false
+    private(set) var billingIssue = false
+    private(set) var summary = "Checking your App Store subscription…"
     var onChange: (() -> Void)?
     private var updatesTask: Task<Void, Never>?
+    private var refreshInFlight = false
+    private var refreshAgain = false
+    private var restoring = false
 
     func start() {
+        UNUserNotificationCenter.current().delegate = TrialReminder.shared
         updatesTask = Task { [weak self] in
             for await update in Transaction.updates {
-                if case .verified(let t) = update { await t.finish() }
+                if case .verified(let t) = update, subProductIDs.contains(t.productID) || t.productID == lifetimeProductID {
+                    await t.finish()
+                }
                 await self?.refresh()
             }
         }
@@ -542,30 +654,137 @@ final class Store {
         let all = (try? await Product.products(for: subProductIDs + [lifetimeProductID])) ?? []
         let subs = all.filter { subProductIDs.contains($0.id) }.sorted { $0.price < $1.price }
         let life = all.first { $0.id == lifetimeProductID }
-        await MainActor.run { self.products = subs; self.lifetimeProduct = life; self.onChange?() }
+        var eligible = Set<String>()
+        for p in subs { if let s = p.subscription, await s.isEligibleForIntroOffer { eligible.insert(p.id) } }
+        let ids = eligible
+        await MainActor.run { self.products = subs; self.lifetimeProduct = life; self.eligibleIntroIDs = ids; self.onChange?() }
     }
     func refresh() async {
-        var active = false
+        // Serialize refreshes; rerun if a transaction arrives during a refresh.
+        let mayRun = await MainActor.run { () -> Bool in
+            if self.refreshInFlight { self.refreshAgain = true; return false }
+            self.refreshInFlight = true; return true
+        }
+        guard mayRun else { return }
+        var active = false, lifetime = false
+        var end: Date?, renewal = false, issue = false
+        var text = "No active subscription found. Restore purchases if you have already subscribed."
         for await result in Transaction.currentEntitlements {
             guard case .verified(let t) = result, t.revocationDate == nil else { continue }
-            if t.productID == lifetimeProductID {
-                active = true                                       // non-consumable: owned forever
-            } else if subProductIDs.contains(t.productID) {
-                if let exp = t.expirationDate { if exp > Date() { active = true } } else { active = true }
+            if t.productID == lifetimeProductID { active = true; lifetime = true }
+            else if subProductIDs.contains(t.productID), let exp = t.expirationDate, exp > Date() { active = true }
+        }
+        // Status and renewal information must BOTH be verified before granting grace-period access
+        // or describing renewal settings. Deduplicate the subscription group across products.
+        var groups = Set<String>()
+        let products = await MainActor.run { self.products }
+        for p in products {
+            guard let info = p.subscription, groups.insert(info.subscriptionGroupID).inserted,
+                  let statuses = try? await info.status else { continue }
+            for status in statuses {
+                guard case .verified(let t) = status.transaction,
+                      case .verified(let r) = status.renewalInfo,
+                      subProductIDs.contains(t.productID), t.revocationDate == nil else { continue }
+                let isActive = status.state == .subscribed && (t.expirationDate ?? .distantPast) > Date()
+                let inGrace = status.state == .inGracePeriod && (r.gracePeriodExpirationDate ?? .distantPast) > Date()
+                if inGrace {
+                    active = true; issue = true
+                    text = "Payment needs attention. Access continues through Apple's billing grace period until \(Self.date(r.gracePeriodExpirationDate!)). Update your payment method to avoid interruption."
+                } else if isActive {
+                    active = true; renewal = r.willAutoRenew
+                    let freeTrial: Bool
+                    if #available(macOS 14.2, *) { freeTrial = t.offer?.paymentMode == .freeTrial }
+                    else { freeTrial = t.offerPaymentModeStringRepresentation == "FREE_TRIAL" }
+                    let exp = t.expirationDate!
+                    if freeTrial { end = exp }
+                    let price = products.first(where: { $0.id == r.autoRenewPreference }) ?? products.first(where: { $0.id == t.productID })
+                    let terms = price.map(Self.recurringPrice) ?? "See Apple's subscription settings for renewal pricing"
+                    text = freeTrial ? "Your free trial ends \(Self.date(exp))." : "Subscription access through \(Self.date(exp))."
+                    text += r.willAutoRenew ? "\nRenews automatically: \(terms). Apple confirms the final renewal terms." : "\nAuto-renew is off. Access continues until the date above; no renewal is scheduled."
+                } else if status.state == .inBillingRetryPeriod {
+                    issue = true
+                    if !active { text = "Apple could not renew your subscription. Update your payment method, then refresh your status. Access resumes when Apple confirms payment." }
+                }
             }
         }
-        let resolved = active
-        await MainActor.run { self.isUnlocked = resolved; self.onChange?() }
+        if lifetime { end = nil; issue = false; text = "Lifetime unlock owned. No subscription renewal is required." }
+        else if active && text.hasPrefix("No active") { text = "Your subscription is active. Renewal details are temporarily unavailable; check Apple's subscription settings." }
+        let unlocked = active, lifeOwned = lifetime, trial = end, willRenew = renewal, needsPayment = issue, message = text
+        let rerun = await MainActor.run { () -> Bool in
+            self.isUnlocked = unlocked; self.ownsLifetime = lifeOwned; self.trialEnd = trial; self.renews = willRenew
+            self.billingIssue = needsPayment; self.summary = message
+            TrialReminder.shared.sync(end: willRenew ? trial : nil)
+            SubscriptionWindow.shared.refreshIfVisible()
+            self.onChange?()
+            self.refreshInFlight = false
+            let again = self.refreshAgain; self.refreshAgain = false
+            return again
+        }
+        if rerun { await refresh() }
+    }
+    static func date(_ d: Date) -> String { d.formatted(date: .abbreviated, time: .omitted) }
+    static func period(_ p: Product.SubscriptionPeriod) -> String {
+        let unit: String
+        switch p.unit { case .day: unit = "day"; case .week: unit = "week"; case .month: unit = "month"; case .year: unit = "year"; @unknown default: unit = "period" }
+        return "\(p.value) \(unit)\(p.value == 1 ? "" : "s")"
+    }
+    static func recurringPrice(_ p: Product) -> String {
+        guard let s = p.subscription else { return p.displayPrice }
+        return "\(p.displayPrice) / \(period(s.subscriptionPeriod))"
+    }
+    func planTitle(_ p: Product) -> String {
+        let price = Self.recurringPrice(p)
+        if eligibleIntroIDs.contains(p.id), let intro = p.subscription?.introductoryOffer, intro.paymentMode == .freeTrial {
+            return "\(Self.period(intro.period)) free — then \(price)"
+        }
+        return "Subscribe — \(price)"
     }
     @discardableResult
     func purchase(_ product: Product) async -> Bool {
         guard let result = try? await product.purchase() else { return false }
         if case .success(let verification) = result, case .verified(let t) = verification {
-            await t.finish(); await refresh(); return true
+            await t.finish(); await loadProducts(); await refresh(); return true
         }
         return false
     }
-    func restore() async { try? await AppStore.sync(); await refresh() }
+    func restore() async {
+        let progress = await MainActor.run { () -> NSPanel? in
+            guard !self.restoring else { return nil }
+            self.restoring = true
+            let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 100), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+            panel.title = "Restore Purchases"; panel.isReleasedWhenClosed = false; panel.level = .normal
+            let label = NSTextField(labelWithString: "Checking purchases with Apple…")
+            label.frame = NSRect(x: 54, y: 40, width: 290, height: 20)
+            let spinner = NSProgressIndicator(frame: NSRect(x: 22, y: 39, width: 20, height: 20))
+            spinner.style = .spinning; spinner.startAnimation(nil)
+            panel.contentView?.addSubview(label); panel.contentView?.addSubview(spinner)
+            panel.center(); panel.makeKeyAndOrderFront(nil)
+            return panel
+        }
+        guard let progress else { return }
+        var syncError: Error?
+        do { try await AppStore.sync() } catch { syncError = error }
+        await loadProducts(); await refresh()
+        while await MainActor.run(body: { self.refreshInFlight }) {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        let error = syncError
+        await MainActor.run {
+            progress.close(); self.restoring = false
+            let alert = NSAlert()
+            if let error {
+                alert.messageText = "Purchases could not be restored"
+                alert.informativeText = "Apple could not complete the restore. \(error.localizedDescription)\n\nTry again using the Apple Account that redeemed your code or made the purchase. TestFlight uses separate test purchases."
+            } else if self.isUnlocked {
+                alert.messageText = "Purchases restored"
+                alert.informativeText = self.ownsLifetime ? "Your lifetime unlock is available on this Mac." : "Your subscription access is available on this Mac."
+            } else {
+                alert.messageText = "No active purchase found"
+                alert.informativeText = "Apple finished checking, but returned no active subscription or lifetime unlock for this app.\n\nIf you are using TestFlight, App Store purchases and redeemed unlock codes do not carry over to the test environment. Make a separate purchase inside the TestFlight app to test access; Apple does not charge for TestFlight purchases. Your App Store unlock remains separate.\n\nIn the public App Store app, use the Apple Account that redeemed the code or made the purchase."
+            }
+            RestoreResultWindow.shared.show(title: alert.messageText, message: alert.informativeText)
+        }
+    }
 }
 
 /// Blocks the app until it's unlocked — an active subscription (a free trial counts) or the
@@ -573,21 +792,25 @@ final class Store {
 final class Paywall: NSObject, NSWindowDelegate {
     static let shared = Paywall()
     private var window: NSWindow?
+    private var dismissed = false
 
-    func show() {
+    func show(userInitiated: Bool = true) {
+        guard userInitiated || !dismissed else { return }
+        if userInitiated { dismissed = false }
         let w = window ?? makeWindow()
+        if w.isMiniaturized { w.deminiaturize(nil) }
         buildBody(in: w)                 // rebuild each time so it reflects loaded products / state
         window = w
         w.center(); w.makeKeyAndOrderFront(nil)
         if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
     }
-    func close() { window?.orderOut(nil) }
+    func close() { dismissed = false; window?.orderOut(nil) }
 
     private func makeWindow() -> NSWindow {
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 470),
-                         styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+                         styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
         w.titleVisibility = .hidden; w.titlebarAppearsTransparent = true
-        w.isReleasedWhenClosed = false; w.level = .floating; w.delegate = self
+        w.isReleasedWhenClosed = false; w.level = .normal; w.delegate = self
         return w
     }
     private func buildBody(in w: NSWindow) {
@@ -614,7 +837,9 @@ final class Paywall: NSObject, NSWindowDelegate {
             for (i, p) in Store.shared.products.enumerated() {
                 let b = NSButton(title: planTitle(p), target: self, action: #selector(buy(_:)))
                 b.bezelStyle = .rounded; b.controlSize = .large; b.tag = i
-                b.widthAnchor.constraint(equalToConstant: 300).isActive = true
+                b.widthAnchor.constraint(equalToConstant: 364).isActive = true
+                b.cell?.wraps = true
+                b.heightAnchor.constraint(greaterThanOrEqualToConstant: 42).isActive = true
                 plans.addArrangedSubview(b)
             }
         }
@@ -637,11 +862,21 @@ final class Paywall: NSObject, NSWindowDelegate {
 
         let restore = NSButton(title: "Restore Purchases", target: self, action: #selector(restoreTapped))
         restore.isBordered = false; restore.contentTintColor = Brand.blue
+        // Required subscription disclosure links (App Store Guideline 3.1.2): a functional
+        // Terms of Use (Apple standard EULA) link + a Privacy Policy link, shown in the app.
+        let terms = NSButton(title: "Terms of Use", target: self, action: #selector(openTerms))
+        terms.isBordered = false; terms.contentTintColor = Brand.blue; terms.font = .systemFont(ofSize: 11)
+        let privacy = NSButton(title: "Privacy Policy", target: self, action: #selector(openPrivacy))
+        privacy.isBordered = false; privacy.contentTintColor = Brand.blue; privacy.font = .systemFont(ofSize: 11)
+        let dot = NSTextField(labelWithString: "·")
+        dot.font = .systemFont(ofSize: 11); dot.textColor = .tertiaryLabelColor
+        let legal = NSStackView(views: [terms, dot, privacy])
+        legal.orientation = .horizontal; legal.spacing = 6; legal.alignment = .centerY
         let note = NSTextField(wrappingLabelWithString:
-            "Educators: email for a 50%-off code and redeem it in the App Store. A free version is also available on GitHub. Subscriptions renew until cancelled; the lifetime unlock is a one-time purchase. Manage purchases in the App Store.")
+            "Plans and eligible free-trial terms are shown above using current App Store pricing. If eligible for a free trial, payment begins when the trial ends. Otherwise payment is charged at purchase confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the period ends. Manage or cancel in your App Store subscription settings. Apple confirms all terms before purchase. Lifetime unlock is a one-time purchase. Educators: email for a 50%-off code.")
         note.font = .systemFont(ofSize: 10); note.textColor = .tertiaryLabelColor; note.alignment = .center
 
-        let root = NSStackView(views: [icon, title, sub, bullets, plans, lifetime, restore, note])
+        let root = NSStackView(views: [icon, title, sub, bullets, plans, lifetime, restore, legal, note])
         root.orientation = .vertical; root.alignment = .centerX; root.spacing = 10
         root.setCustomSpacing(16, after: bullets)
         root.setCustomSpacing(14, after: plans)
@@ -653,15 +888,14 @@ final class Paywall: NSObject, NSWindowDelegate {
             root.trailingAnchor.constraint(equalTo: cv.trailingAnchor),
             root.topAnchor.constraint(equalTo: cv.topAnchor),
         ])
+        bullets.preferredMaxLayoutWidth = 408; note.preferredMaxLayoutWidth = 408
+        bullets.widthAnchor.constraint(equalToConstant: 408).isActive = true
+        note.widthAnchor.constraint(equalToConstant: 408).isActive = true
+        w.setContentSize(NSSize(width: 460, height: 600))
         w.layoutIfNeeded()
-        w.setContentSize(NSSize(width: 420, height: max(root.fittingSize.height, 440)))
+        w.setContentSize(NSSize(width: 460, height: max(root.fittingSize.height, 440)))
     }
-    private func planTitle(_ p: Product) -> String {
-        if let intro = p.subscription?.introductoryOffer, intro.paymentMode == .freeTrial {
-            return "Start Free Trial — then \(p.displayPrice)"
-        }
-        return "Subscribe — \(p.displayPrice)"
-    }
+    private func planTitle(_ p: Product) -> String { Store.shared.planTitle(p) }
     @objc private func buy(_ sender: NSButton) {
         guard sender.tag < Store.shared.products.count else { return }
         let p = Store.shared.products[sender.tag]
@@ -672,10 +906,330 @@ final class Paywall: NSObject, NSWindowDelegate {
         Task { _ = await Store.shared.purchase(lp) }
     }
     @objc private func restoreTapped() { Task { await Store.shared.restore() } }
-    // Can't close the paywall without subscribing.
-    func windowShouldClose(_ sender: NSWindow) -> Bool { false }
+    @objc private func openTerms() {
+        if let u = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") { NSWorkspace.shared.open(u) }
+    }
+    @objc private func openPrivacy() {
+        if let u = URL(string: "https://emerytech.github.io/bluebird-docucam/privacy.html") { NSWorkspace.shared.open(u) }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { dismissed = true; return true }
+    func windowDidMiniaturize(_ notification: Notification) { dismissed = true }
+    func windowDidDeminiaturize(_ notification: Notification) { dismissed = false }
 }
 #endif  // APP_STORE
+
+// MARK: - First lesson and local classroom presets
+
+// Shared with the existing About/Settings visual language: Brand.blue, system typography,
+// compact section labels, native controls, and 24-point horizontal margins.
+private enum RetentionUI {
+    static let windowWidth: CGFloat = 500
+    static let width: CGFloat = windowWidth - 48
+
+    static func text(_ string: String, width: CGFloat = width, size: CGFloat = 13,
+                     weight: NSFont.Weight = .regular, color: NSColor = .labelColor) -> NSTextField {
+        let label = NSTextField(wrappingLabelWithString: string)
+        label.font = .systemFont(ofSize: size, weight: weight); label.textColor = color
+        label.preferredMaxLayoutWidth = width
+        label.translatesAutoresizingMaskIntoConstraints = false
+        let attributed = NSAttributedString(string: string, attributes: [.font: label.font!])
+        let measured = attributed.boundingRect(with: NSSize(width: width - 4, height: 10000), options: [.usesLineFragmentOrigin, .usesFontLeading])
+        NSLayoutConstraint.activate([label.widthAnchor.constraint(equalToConstant: width),
+                                     label.heightAnchor.constraint(equalToConstant: ceil(measured.height) + 4)])
+        return label
+    }
+    static func stack(_ views: [NSView], width: CGFloat = width, spacing: CGFloat = 10) -> NSStackView {
+        let stack = NSStackView(views: views); stack.orientation = .vertical
+        stack.alignment = .leading; stack.spacing = spacing
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.widthAnchor.constraint(equalToConstant: width).isActive = true
+        return stack
+    }
+    static func header(_ title: String, subtitle: String) -> NSView {
+        let icon = NSImageView(); icon.image = NSApp.applicationIconImage
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        NSLayoutConstraint.activate([icon.widthAnchor.constraint(equalToConstant: 44), icon.heightAnchor.constraint(equalToConstant: 44)])
+        icon.setAccessibilityElement(false)
+        let labels = stack([text(title, width: width - 58, size: 22, weight: .bold, color: Brand.blue),
+                            text(subtitle, width: width - 58, size: 12, color: .secondaryLabelColor)], width: width - 58, spacing: 2)
+        let row = NSStackView(views: [icon, labels]); row.orientation = .horizontal; row.alignment = .centerY; row.spacing = 14
+        row.widthAnchor.constraint(equalToConstant: width).isActive = true
+        return row
+    }
+    static func section(_ title: String) -> NSTextField { text(title, size: 10, weight: .semibold, color: Brand.blue) }
+    static func founderNote(width: CGFloat = width, target: AnyObject, action: Selector) -> NSView {
+        let heading = text("A NOTE FROM TAYLOR", width: width, size: 10, weight: .semibold, color: Brand.blue)
+        let message = text("Hi, I’m Taylor. I built BlueBird DocuCam for our Science Department, and they enjoyed using it so much that I decided to share it with other classrooms.\n\nI’d love to hear how it works for you. If you have a suggestion, a feature idea, or something isn’t working, I’m all ears.", width: width, size: 12, color: .secondaryLabelColor)
+        return stack([heading, message, link("Send Taylor Feedback", target: target, action: action)], width: width, spacing: 8)
+    }
+    static func separator() -> NSView {
+        let line = NSBox(); line.boxType = .separator
+        line.widthAnchor.constraint(equalToConstant: width).isActive = true
+        return line
+    }
+    static func button(_ title: String, target: AnyObject, action: Selector, primary: Bool = false) -> NSButton {
+        let button = NSButton(title: title, target: target, action: action)
+        button.bezelStyle = .rounded; button.font = .systemFont(ofSize: 13, weight: primary ? .semibold : .regular)
+        if primary {
+            button.controlSize = .large; button.bezelColor = Brand.blue
+            button.attributedTitle = NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold), .foregroundColor: NSColor.white])
+        }
+        return button
+    }
+    static func link(_ title: String, target: AnyObject, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: target, action: action)
+        button.isBordered = false; button.bezelStyle = .inline
+        button.font = .systemFont(ofSize: 12, weight: .medium); button.contentTintColor = Brand.blue
+        return button
+    }
+    static func actions(left: [NSView], right: [NSView]) -> NSView {
+        let spacer = NSView(); spacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        let row = NSStackView(views: left + [spacer] + right)
+        row.orientation = .horizontal; row.alignment = .centerY; row.spacing = 12
+        row.widthAnchor.constraint(equalToConstant: width).isActive = true
+        return row
+    }
+    static func install(_ views: [NSView], in window: NSWindow) {
+        let root = NSStackView(views: views); root.orientation = .vertical; root.alignment = .leading; root.spacing = 16
+        root.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 20, right: 24)
+        root.translatesAutoresizingMaskIntoConstraints = false
+        let content = window.contentView!
+        content.subviews.forEach { $0.removeFromSuperview() }; content.addSubview(root)
+        NSLayoutConstraint.activate([root.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+                                     root.trailingAnchor.constraint(equalTo: content.trailingAnchor), root.topAnchor.constraint(equalTo: content.topAnchor)])
+        window.setContentSize(NSSize(width: windowWidth, height: 400))
+        window.layoutIfNeeded()
+        window.setContentSize(NSSize(width: windowWidth, height: ceil(root.fittingSize.height)))
+    }
+}
+
+#if APP_STORE
+/// Modeless result: users can close, minimize, switch apps or dismiss with OK.
+final class RestoreResultWindow: NSObject {
+    static let shared = RestoreResultWindow()
+    private var window: NSWindow?
+    func show(title: String, message: String) {
+        let w = window ?? NSWindow(contentRect: NSRect(x: 0, y: 0, width: RetentionUI.windowWidth, height: 300), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        w.title = "Restore Purchases"; w.isReleasedWhenClosed = false
+        let done = RetentionUI.button("OK", target: self, action: #selector(dismiss), primary: true)
+        done.keyEquivalent = "\r"
+        RetentionUI.install([RetentionUI.text(title, size: 18, weight: .semibold),
+            RetentionUI.text(message), RetentionUI.actions(left: [], right: [done])], in: w)
+        let isNew = window == nil; window = w
+        if isNew { w.center() }; if w.isMiniaturized { w.deminiaturize(nil) }
+        w.makeKeyAndOrderFront(nil)
+    }
+    @objc private func dismiss() { window?.close() }
+}
+#endif
+
+final class GettingStarted: NSObject {
+    static let shared = GettingStarted()
+    private var window: NSPanel?
+    private var stepIcons: [NSImageView] = []
+    private var actions: [() -> Void] = []
+    var progress: LessonProgress {
+        get { UserDefaults.standard.data(forKey: "lessonProgress").flatMap { try? JSONDecoder().decode(LessonProgress.self, from: $0) } ?? LessonProgress() }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: "lessonProgress"); refresh() }
+    }
+    func record(camera: Bool = false, presentation: Bool = false, saved: Bool = false) {
+        var p = progress; p.sawCamera = p.sawCamera || camera; p.presented = p.presented || presentation; p.savedWork = p.savedWork || saved
+        if p != progress { progress = p }
+    }
+    func show(actions: [() -> Void]) {
+        self.actions = actions; UserDefaults.standard.set(true, forKey: "gettingStartedSeen")
+        if let w = window { refresh(); w.makeKeyAndOrderFront(nil); return }
+        let w = NSPanel(contentRect: NSRect(x: 0, y: 0, width: RetentionUI.windowWidth, height: 430), styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
+        w.title = "\(appName) — Getting Started"; w.isReleasedWhenClosed = false; w.hidesOnDeactivate = true
+        stepIcons = []
+        let connect = step("Connect your camera", detail: "Use a USB camera or a nearby iPhone.", buttons: [("Choose…", 0)], controlsWidth: 92)
+        let present = step("Present to your class", detail: "Use full screen for your projector.", buttons: [("Present", 1)], controlsWidth: 92)
+        let save = step("Save a useful result", detail: "Add a page, then save your scan as a PDF.", buttons: [("Add Page", 2), ("Save PDF…", 3)], controlsWidth: 170)
+        let steps = RetentionUI.stack([connect, RetentionUI.separator(), present, RetentionUI.separator(), save], spacing: 14)
+        let tips = RetentionUI.stack([RetentionUI.section("QUICK TIPS"),
+            RetentionUI.text("Space freezes the page. Scroll to zoom. For a narrated lesson, choose Capture → Start Recording.", size: 12, color: .secondaryLabelColor),
+            RetentionUI.text("Keep your setup in View → Classroom Presets. This checklist is always available in Help.", size: 12, color: .secondaryLabelColor)], spacing: 6)
+        let done = RetentionUI.button("Done", target: self, action: #selector(close), primary: true); done.keyEquivalent = "\r"
+        RetentionUI.install([RetentionUI.header("Your first lesson", subtitle: "Three steps to get ready for class."),
+            RetentionUI.section("GET STARTED"), steps, tips, RetentionUI.separator(),
+            RetentionUI.founderNote(target: self, action: #selector(sendTaylorFeedback)),
+            RetentionUI.actions(left: [RetentionUI.link("Camera setup help…", target: self, action: #selector(cameraHelp))], right: [done])], in: w)
+        window = w; refresh(); w.center(); w.makeKeyAndOrderFront(nil)
+    }
+    private func step(_ title: String, detail: String, buttons: [(String, Int)], controlsWidth: CGFloat) -> NSView {
+        let icon = NSImageView(); icon.imageScaling = .scaleProportionallyUpOrDown
+        NSLayoutConstraint.activate([icon.widthAnchor.constraint(equalToConstant: 20), icon.heightAnchor.constraint(equalToConstant: 20)])
+        stepIcons.append(icon)
+        let textWidth = RetentionUI.width - 20 - 24 - controlsWidth
+        let labels = RetentionUI.stack([RetentionUI.text(title, width: textWidth, weight: .medium),
+            RetentionUI.text(detail, width: textWidth, size: 11, color: .secondaryLabelColor)], width: textWidth, spacing: 2)
+        let controls = NSStackView(views: buttons.map { title, index in
+            let b = RetentionUI.button(title, target: self, action: #selector(runStep(_:))); b.tag = index; return b
+        })
+        controls.orientation = .horizontal; controls.spacing = 6
+        controls.widthAnchor.constraint(equalToConstant: controlsWidth).isActive = true
+        let row = NSStackView(views: [icon, labels, controls]); row.orientation = .horizontal; row.alignment = .centerY; row.spacing = 12
+        row.widthAnchor.constraint(equalToConstant: RetentionUI.width).isActive = true
+        return row
+    }
+    private func refresh() {
+        let p = progress
+        for (i, complete) in [p.sawCamera, p.presented, p.savedWork].enumerated() where stepIcons.indices.contains(i) {
+            stepIcons[i].image = NSImage(systemSymbolName: complete ? "checkmark.circle.fill" : "circle", accessibilityDescription: complete ? "Completed" : "Not completed")
+            stepIcons[i].contentTintColor = complete ? .systemGreen : .tertiaryLabelColor
+        }
+    }
+    @objc private func runStep(_ sender: NSButton) { if actions.indices.contains(sender.tag) { actions[sender.tag]() } }
+    @objc private func sendTaylorFeedback() { window?.orderOut(nil); FeedbackWindow.shared.show() }
+    @objc private func close() { window?.orderOut(nil) }
+    @objc private func cameraHelp() {
+        let alert = NSAlert(); alert.messageText = "Connect a document camera"
+        alert.informativeText = "Plug in a USB camera, then use Choose to select it.\n\nFor Continuity Camera, bring your iPhone near this Mac. Both devices need Wi-Fi and Bluetooth enabled and the same Apple Account.\n\nIf camera access is denied, allow DocuCam in System Settings → Privacy & Security → Camera."
+        alert.addButton(withTitle: "Got It"); alert.runModal()
+    }
+}
+
+final class FeedbackWindow: NSObject {
+    static let shared = FeedbackWindow()
+    private var window: NSWindow?
+    private var reason: NSPopUpButton!
+    func show() {
+        if let w = window { w.makeKeyAndOrderFront(nil); return }
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: RetentionUI.windowWidth, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        w.title = "\(appName) — Feedback"; w.isReleasedWhenClosed = false
+        reason = NSPopUpButton(); reason.addItems(withTitles: ["Trouble connecting or setting up", "Missing a feature I need", "Price / subscription preference", "No longer need a document camera", "Other"])
+        reason.widthAnchor.constraint(equalToConstant: RetentionUI.width).isActive = true
+        reason.setAccessibilityLabel("Main reason for feedback")
+        let experience = RetentionUI.stack([RetentionUI.section("YOUR EXPERIENCE"),
+            RetentionUI.text("What could work better for you?", weight: .medium), reason,
+            RetentionUI.text("Sharing feedback is optional and does not change or cancel your subscription.", size: 12, color: .secondaryLabelColor)], spacing: 8)
+        let email = RetentionUI.button("Create Email…", target: self, action: #selector(compose), primary: true)
+        let cancel = RetentionUI.button("Not Now", target: self, action: #selector(close)); cancel.keyEquivalent = "\u{1b}"
+        RetentionUI.install([RetentionUI.header("Help improve DocuCam", subtitle: "Tell us what would make a difference."), experience,
+            RetentionUI.separator(),
+            RetentionUI.text("Nothing is sent automatically. Review and send the draft in your email app, which may include your address and signature.", size: 11, color: .secondaryLabelColor),
+            RetentionUI.actions(left: [], right: [cancel, email])], in: w)
+        window = w; w.center(); w.makeKeyAndOrderFront(nil)
+    }
+    @objc private func close() { window?.orderOut(nil) }
+    @objc private func compose() {
+        var url = URLComponents(); url.scheme = "mailto"; url.path = "admin@emerytechsolutions.com"
+        url.queryItems = [URLQueryItem(name: "subject", value: "DocuCam feedback"), URLQueryItem(name: "body", value: "Main reason: \(reason.titleOfSelectedItem ?? "Other")\n\nOptional details:\n")]
+        if let u = url.url, NSWorkspace.shared.open(u) { window?.orderOut(nil) }
+        else { let a = NSAlert(); a.messageText = "Could not open an email app"; a.informativeText = "You can email feedback to admin@emerytechsolutions.com."; a.runModal() }
+    }
+}
+
+#if APP_STORE
+import UserNotifications
+
+final class TrialReminder: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = TrialReminder()
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        DispatchQueue.main.async { SubscriptionWindow.shared.show(); Task { await Store.shared.refresh() } }
+        completionHandler()
+    }
+    private var generation = 0
+    private var scheduledKey: String?
+    var enabled: Bool { UserDefaults.standard.bool(forKey: "trialReminderEnabled") }
+    func setEnabled(_ on: Bool) { UserDefaults.standard.set(on, forKey: "trialReminderEnabled"); scheduledKey = nil; sync(end: Store.shared.renews ? Store.shared.trialEnd : nil) }
+    func sync(end: Date?) {
+        let key = "\(enabled)-\(end?.timeIntervalSince1970 ?? 0)"
+        guard key != scheduledKey else { return }
+        scheduledKey = key; generation += 1; let version = generation
+        Task { @MainActor in
+            let center = UNUserNotificationCenter.current()
+            let pending = await center.pendingNotificationRequests()
+            guard version == self.generation else { return }
+            center.removePendingNotificationRequests(withIdentifiers: pending.filter { $0.identifier.hasPrefix("docucam.trial.") }.map(\.identifier))
+            guard self.enabled, let end, let fire = TrialReminderPolicy.fireDate(end: end) else { return }
+            let settings = await center.notificationSettings()
+            guard version == self.generation else { return }
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+                self.scheduledKey = nil; return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = "Your DocuCam trial ends soon"
+            content.body = "Your trial ends \(Store.date(end)). Check Subscription & Trial in DocuCam for renewal terms. Try saving a scan or recording before then."
+            content.sound = .default
+            let id = "docucam.trial.\(UUID().uuidString)"
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, fire.timeIntervalSinceNow), repeats: false)
+            do {
+                try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+                if version != self.generation { center.removePendingNotificationRequests(withIdentifiers: [id]) }
+            } catch { self.scheduledKey = nil }
+        }
+    }
+}
+
+final class SubscriptionWindow: NSObject {
+    static let shared = SubscriptionWindow()
+    private var window: NSWindow?
+    func refreshIfVisible() { if window?.isVisible == true { show(bringToFront: false) } }
+    func show(bringToFront: Bool = true) {
+        let w = window ?? NSWindow(contentRect: NSRect(x: 0, y: 0, width: RetentionUI.windowWidth, height: 360), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        w.title = "\(appName) — Subscription & Trial"; w.isReleasedWhenClosed = false
+        let store = Store.shared
+        let statusTitle = store.ownsLifetime ? "LIFETIME UNLOCK" : store.billingIssue ? "PAYMENT NEEDS ATTENTION" : store.trialEnd != nil ? "FREE TRIAL" : store.isUnlocked ? "SUBSCRIPTION ACTIVE" : "SUBSCRIPTION STATUS"
+        let statusHeader = RetentionUI.section(statusTitle)
+        if store.billingIssue { statusHeader.textColor = .systemOrange }
+        var statusViews: [NSView] = [statusHeader, RetentionUI.text(store.summary)]
+        if store.billingIssue {
+            statusViews.append(RetentionUI.button("Update Payment Method…", target: self, action: #selector(payment), primary: true))
+        }
+        var views: [NSView] = [RetentionUI.header("Subscription & Trial", subtitle: "Your plan, renewal and payment settings."), RetentionUI.stack(statusViews, spacing: 8)]
+        if (store.trialEnd != nil && store.renews) || TrialReminder.shared.enabled {
+            let toggle = NSSwitch(); toggle.target = self; toggle.action = #selector(remind(_:))
+            toggle.state = TrialReminder.shared.enabled ? .on : .off
+            toggle.setAccessibilityLabel("Remind me before my trial ends")
+            let row = RetentionUI.actions(left: [RetentionUI.text("Remind me before my trial ends", width: 350)], right: [toggle])
+            views.append(RetentionUI.stack([RetentionUI.section("TRIAL REMINDER"), row,
+                RetentionUI.text("An optional notification on this Mac, about two days before your trial ends.", size: 12, color: .secondaryLabelColor)], spacing: 8))
+        }
+        views.append(RetentionUI.separator())
+        var secondary: [NSView] = []
+        if store.isUnlocked && !store.ownsLifetime {
+            secondary.append(RetentionUI.link("Take a break…", target: self, action: #selector(takeBreak)))
+        }
+        let manage = RetentionUI.button("Manage Subscription…", target: self, action: #selector(manage), primary: !store.billingIssue)
+        views.append(RetentionUI.actions(left: secondary, right: [manage]))
+        views.append(RetentionUI.text("Manage, cancel or resubscribe in Apple's settings. Changes made on another device appear after you refresh.", size: 11, color: .secondaryLabelColor))
+        views.append(RetentionUI.actions(left: [RetentionUI.link("Share Feedback…", target: self, action: #selector(feedback))], right: [RetentionUI.link("Refresh Status", target: self, action: #selector(refresh))]))
+        RetentionUI.install(views, in: w)
+        let isNew = window == nil; window = w; if isNew { w.center() }
+        if bringToFront {
+            w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+            w.makeKeyAndOrderFront(nil)
+            if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
+        }
+    }
+    @objc private func takeBreak() {
+        let a = NSAlert(); a.messageText = "Take a break from DocuCam"
+        a.informativeText = "To stop future charges, turn off renewal in Apple's subscription settings. DocuCam cannot schedule an automatic pause or restart.\n\nApple shows when access ends; canceling a free trial may end access early. Unused time is not refunded or saved for later. Your saved files and classroom presets stay on your Mac.\n\nResubscribe through Apple when you're ready, at the terms shown then. Opening settings alone changes nothing. Return here and refresh to confirm any changes."
+        a.addButton(withTitle: "Open Apple Subscription Settings"); a.addButton(withTitle: "Not Now")
+        if a.runModal() == .alertFirstButtonReturn { manage() }
+    }
+    @objc private func manage() { if let u = URL(string: "macappstore://apps.apple.com/account/subscriptions") { NSWorkspace.shared.open(u) } }
+    @objc private func payment() { if let u = URL(string: "https://apps.apple.com/account/billing") { NSWorkspace.shared.open(u) } }
+    @objc private func refresh() { Task { await Store.shared.loadProducts(); await Store.shared.refresh() } }
+    @objc private func feedback() { FeedbackWindow.shared.show() }
+    @objc private func remind(_ sender: NSSwitch) {
+        if sender.state == .off { TrialReminder.shared.setEnabled(false); return }
+        Task { @MainActor in
+            do {
+                let allowed = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+                TrialReminder.shared.setEnabled(allowed)
+                if !allowed { self.notificationError("Notifications are disabled. Enable notifications for DocuCam in System Settings to receive a reminder.") }
+            } catch { self.notificationError("A reminder could not be enabled. Try again in System Settings → Notifications.") }
+            self.refreshIfVisible()
+        }
+    }
+    private func notificationError(_ text: String) { let a = NSAlert(); a.messageText = "Trial reminder"; a.informativeText = text; a.runModal() }
+}
+#endif
 
 // MARK: - About window
 
@@ -763,15 +1317,11 @@ final class AboutWindow: NSObject, NSWindowDelegate {
         supportBlock.alignment = .centerX
         supportBlock.spacing = 8
 
-        let github = linkButton("View on GitHub", #selector(openGitHub))
-#if APP_STORE
-        let links = NSStackView(views: [github])   // App Store handles updates
-#else
+        var aboutItems: [NSView] = [icon, title, version, tagline, supportBlock]
+#if !APP_STORE
         let updates = linkButton("Check for Updates…", #selector(checkUpdates))
-        let links = NSStackView(views: [github, updates])
+        aboutItems.append(updates)
 #endif
-        links.orientation = .horizontal
-        links.spacing = 18
 
         let sep = NSBox(); sep.boxType = .separator
 
@@ -781,14 +1331,18 @@ final class AboutWindow: NSObject, NSWindowDelegate {
         copy.alignment = .center
         wrap(copy)
 
-        let root = NSStackView(views: [icon, title, version, tagline, supportBlock, links, sep, copy])
+        let founder = RetentionUI.founderNote(width: 304, target: self, action: #selector(sendTaylorFeedback))
+        let root = NSStackView(views: aboutItems + [founder, sep, copy])
         root.orientation = .vertical
         root.alignment = .centerX
         root.spacing = 8
         root.setCustomSpacing(4, after: title)
         root.setCustomSpacing(18, after: tagline)
         root.setCustomSpacing(18, after: supportBlock)
-        root.setCustomSpacing(14, after: links)
+#if !APP_STORE
+        root.setCustomSpacing(18, after: updates)
+#endif
+        root.setCustomSpacing(18, after: founder)
         root.edgeInsets = NSEdgeInsets(top: 26, left: 28, bottom: 20, right: 28)
         root.translatesAutoresizingMaskIntoConstraints = false
         cv.addSubview(root)
@@ -830,7 +1384,7 @@ final class AboutWindow: NSObject, NSWindowDelegate {
     private func activate() {
         if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
     }
-    @objc private func openGitHub() { if let u = URL(string: repoURL) { NSWorkspace.shared.open(u) } }
+    @objc private func sendTaylorFeedback() { FeedbackWindow.shared.show() }
 #if APP_STORE
     @objc private func restorePurchases() { Task { await Store.shared.restore() } }
     @objc private func manageSubscription() {
@@ -858,12 +1412,13 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     private weak var owner: AppDelegate?
     private var cameraPopup: NSPopUpButton?
     private weak var loginSwitch: NSSwitch?
+    private weak var recordFolderButton: NSButton?
 
     func show(owner: AppDelegate) {
         self.owner = owner
         if let w = window { resync(); w.makeKeyAndOrderFront(nil); activate(); return }
 
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 300),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 440),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "\(appName) Settings"
         w.isReleasedWhenClosed = false
@@ -877,20 +1432,44 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
         let loginSw = makeSwitch(Settings.launchAtLoginEnabled, #selector(loginChanged(_:)))
         loginSwitch = loginSw
+
+        let folderBtn = NSButton(title: recordFolderTitle(), target: self, action: #selector(chooseRecordFolder(_:)))
+        folderBtn.bezelStyle = .rounded
+        recordFolderButton = folderBtn
+        let resetBtn = NSButton(title: "Reset", target: self, action: #selector(resetRecordFolder(_:)))
+        resetBtn.bezelStyle = .rounded
+        let folderControls = NSStackView(views: [folderBtn, resetBtn])
+        folderControls.orientation = .horizontal
+        folderControls.spacing = 6
+
+        let camRow = row("Default camera", camPopup)
+        let fsRow = row("Start in full screen", makeSwitch(Settings.startFullScreen, #selector(startFSChanged(_:))))
+        let folderRow = row("Save recordings to", folderControls)
         let form = NSStackView(views: [
             header("CAMERA"),
-            row("Default camera", camPopup),
+            camRow,
             header("STARTUP"),
             row("Open at login", loginSw),
-            row("Start in full screen", makeSwitch(Settings.startFullScreen, #selector(startFSChanged(_:)))),
+            row("Start minimized (menu bar only)", makeSwitch(Settings.startMinimized, #selector(startMinChanged(_:)))),
+            row("Start recording on launch", makeSwitch(Settings.autoStartRecording, #selector(autoRecChanged(_:)))),
+            fsRow,
+            header("RECORDING"),
+            folderRow,
             header("FULL SCREEN"),
             row("Hide the pointer when idle", makeSwitch(Settings.hidePointerFullScreen, #selector(hidePtrChanged(_:)))),
         ])
+#if !APP_STORE
+        form.addArrangedSubview(header("PRIVACY"))
+        let participation = makeSwitch(InstallCount.enabled, #selector(toggleInstallCount(_:)))
+        participation.toolTip = "Send a random installation ID daily while DocuCam runs."
+        form.addArrangedSubview(row("Include this install in the active count", participation))
+#endif
         form.orientation = .vertical
         form.alignment = .leading
         form.spacing = 10
-        form.setCustomSpacing(16, after: form.arrangedSubviews[1])
-        form.setCustomSpacing(16, after: form.arrangedSubviews[4])
+        form.setCustomSpacing(16, after: camRow)
+        form.setCustomSpacing(16, after: fsRow)
+        form.setCustomSpacing(16, after: folderRow)
         form.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
         form.translatesAutoresizingMaskIntoConstraints = false
         cv.addSubview(form)
@@ -901,6 +1480,9 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
             form.bottomAnchor.constraint(equalTo: cv.bottomAnchor),
         ])
 
+#if !APP_STORE
+        w.setContentSize(NSSize(width: w.frame.width, height: form.fittingSize.height))
+#endif
         rebuildCameraPopup()
         window = w
         w.center()
@@ -915,6 +1497,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     private func resync() {
         rebuildCameraPopup()
         loginSwitch?.state = Settings.launchAtLoginEnabled ? .on : .off
+        recordFolderButton?.title = recordFolderTitle()
     }
 
     private func rebuildCameraPopup() {
@@ -991,10 +1574,57 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         // reflect the system's actual state (registration can fail from the DMG / Downloads)
         s.state = Settings.launchAtLoginEnabled ? .on : .off
     }
+#if !APP_STORE
+    @objc private func toggleInstallCount(_ sender: NSSwitch) {
+        UserDefaults.standard.set(sender.state == .on, forKey: InstallCount.preference)
+        InstallCount.checkIn()
+    }
+#endif
     @objc private func startFSChanged(_ s: NSSwitch) { Settings.startFullScreen = (s.state == .on) }
     @objc private func hidePtrChanged(_ s: NSSwitch) { Settings.hidePointerFullScreen = (s.state == .on) }
+    @objc private func startMinChanged(_ s: NSSwitch) { Settings.startMinimized = (s.state == .on) }
+    @objc private func autoRecChanged(_ s: NSSwitch) { Settings.autoStartRecording = (s.state == .on) }
 
-    func windowWillClose(_ n: Notification) { window = nil; cameraPopup = nil; loginSwitch = nil }
+    /// Display name of the current recording folder (default "Downloads").
+    private func recordFolderTitle() -> String {
+        if let data = Settings.recordFolderBookmark {
+            var stale = false
+            if let url = try? URL(resolvingBookmarkData: data, options: Settings.bookmarkResolveOptions,
+                                  relativeTo: nil, bookmarkDataIsStale: &stale) {
+                return url.lastPathComponent
+            }
+        }
+        return "Downloads"
+    }
+    @objc private func chooseRecordFolder(_ sender: NSButton) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Choose"
+        panel.message = "Choose where \(appName) saves recordings — a folder on this Mac or a mounted network share."
+        panel.begin { resp in
+            guard resp == .OK, let url = panel.url else { return }
+            do {
+                let data = try url.bookmarkData(options: Settings.bookmarkCreateOptions,
+                                                includingResourceValuesForKeys: nil, relativeTo: nil)
+                Settings.recordFolderBookmark = data
+                sender.title = url.lastPathComponent
+            } catch {
+                let a = NSAlert()
+                a.messageText = "Couldn’t use that folder"
+                a.informativeText = error.localizedDescription
+                a.runModal()
+            }
+        }
+    }
+    @objc private func resetRecordFolder(_ sender: NSButton) {
+        Settings.recordFolderBookmark = nil
+        recordFolderButton?.title = "Downloads"
+    }
+
+    func windowWillClose(_ n: Notification) { window = nil; cameraPopup = nil; loginSwitch = nil; recordFolderButton = nil }
     private func activate() {
         if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
     }
@@ -1002,7 +1632,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate, AVCaptureVideoDataOutputSampleBufferDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate, AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureFileOutputRecordingDelegate {
     private var window: NSWindow!
     private var preview: PreviewView!
     private var statusItem: NSStatusItem!
@@ -1012,6 +1642,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private let frameQueue = DispatchQueue(label: "docucam.frames")
     private let videoOutput = AVCaptureVideoDataOutput()
     private var currentInput: AVCaptureDeviceInput?     // mutated only on sessionQueue
+    // Recording: camera + mic → .mov, added to the live session lazily on first record.
+    private let movieOutput = AVCaptureMovieFileOutput()
+    private var movieOutputAdded = false                // sessionQueue
+    private var micInput: AVCaptureDeviceInput?         // sessionQueue
+    private var isRecording = false                     // main
+    private var recordItem: NSMenuItem?
+    // Keep the Mac awake while recording so capture survives an idle display/system sleep.
+    // We block *system* idle sleep only — the display is still free to turn off.
+    private var sleepAssertionID: IOPMAssertionID = IOPMAssertionID(0)
+    private var sleepAssertionActive = false            // main
+    private var didAutoStart = false                    // main; auto-record fires once per launch
     private var activeDeviceID: String?                 // UI source of truth; main thread only
 
     private var pendingFreeze = false                   // guarded by bufferLock
@@ -1022,7 +1663,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var scanPages: [CGImage] = []               // main thread; collected PDF pages (oriented)
     private let bufferLock = NSLock()
     private let ciContext = CIContext()
+    // Batch-scan enhancement (auto-crop/deskew + scanner look). Persisted in UserDefaults.
+    private var scanAutoEnhance = UserDefaults.standard.object(forKey: "scanAutoEnhance") as? Bool ?? true
+    private var scanMode = ScanMode(rawValue: UserDefaults.standard.integer(forKey: "scanMode")) ?? .color
+    private let scanQueue = DispatchQueue(label: "docucam.scan", qos: .userInitiated)
+    private var autoEnhanceItem: NSMenuItem?
+    private var scanModeItems: [NSMenuItem] = []
 
+    private var presetMenu: NSMenu?
+    private var firstFrameObserved = false // guarded by bufferLock
+    private var hasLaunched = false
+    private var subscriptionTimer: Timer?
     private var cameraMenu: NSMenu!
     private var freezeItem: NSMenuItem!
     private var flipHItem: NSMenuItem!
@@ -1080,26 +1731,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         Store.shared.start()
         updateAccess()
 #else
+        InstallCount.checkIn()
+        Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in InstallCount.checkIn() }
         checkPermissionAndStart()
+        showGettingStartedIfNeeded()
 #endif
 
-        if Settings.startFullScreen {
+        hasLaunched = true
+#if APP_STORE
+        subscriptionTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in Task { await Store.shared.refresh() } }
+#endif
+        if Settings.startFullScreen && !Settings.startMinimized {
             DispatchQueue.main.async { self.window.toggleFullScreen(nil) }
         }
     }
 
 #if APP_STORE
     private var cameraStarted = false
+    private var accessWasUnlocked = false
     /// Called on launch and whenever the subscription state changes: reveal the app when
     /// subscribed, otherwise block it behind the paywall.
     private func updateAccess() {
-        if Store.shared.isUnlocked {
+        let unlocked = Store.shared.isUnlocked
+        let becameUnlocked = unlocked && !accessWasUnlocked
+        accessWasUnlocked = unlocked
+        if unlocked {
             Paywall.shared.close()
-            window.makeKeyAndOrderFront(nil)
-            if !cameraStarted { cameraStarted = true; checkPermissionAndStart() }
+            // A status refresh must not steal focus from Subscription & Trial (or
+            // reopen a camera window the user closed/minimized).
+            if becameUnlocked && !Settings.startMinimized { window.makeKeyAndOrderFront(nil) }
+            if !cameraStarted { cameraStarted = true; checkPermissionAndStart(); showGettingStartedIfNeeded() }
         } else {
             window.orderOut(nil)
-            Paywall.shared.show()
+            Paywall.shared.show(userInitiated: false)
         }
     }
 #endif
@@ -1131,10 +1795,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         preview = PreviewView(frame: rect)
         window.contentView = preview
         window.setFrameAutosaveName("DocuCamMainWindow")
-        window.makeKeyAndOrderFront(nil)
+        // Start minimized ⇒ stay in the menu bar with no visible window. The capture
+        // session and recording run regardless of whether the window is on screen.
+        if !Settings.startMinimized { window.makeKeyAndOrderFront(nil) }
     }
 
     @objc private func showMainWindow() {
+#if APP_STORE
+        guard Store.shared.isUnlocked else { Paywall.shared.show(); return }
+#endif
         window.makeKeyAndOrderFront(nil)
         if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
         sessionQueue.async { if !self.session.isRunning { self.session.startRunning() } }
@@ -1160,6 +1829,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         add(appMenu, "About \(appName)", #selector(showAbout))
 #if APP_STORE
         add(appMenu, "Restore Purchases", #selector(restoreSub))
+        add(appMenu, "Subscription & Trial…", #selector(showSubscription))
 #else
         add(appMenu, "Check for Updates…", #selector(checkForUpdates))
         add(appMenu, "Support the Developer…", #selector(openKofi))
@@ -1191,6 +1861,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         viewMenu.addItem(withTitle: "Enter Full Screen",
                          action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
             .keyEquivalentModifierMask = [.command, .control]
+        viewMenu.addItem(.separator())
+        let presetItem = NSMenuItem(title: "Classroom Presets", action: nil, keyEquivalent: "")
+        presetMenu = NSMenu(title: "Classroom Presets"); presetItem.submenu = presetMenu
+        viewMenu.addItem(presetItem); rebuildPresetMenu()
         viewItem.submenu = viewMenu
 
         let capItem = NSMenuItem(); main.addItem(capItem)
@@ -1201,6 +1875,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         add(capMenu, "Add Page to Scan", #selector(addScanPage), "a", [.command, .shift])
         add(capMenu, "Save Scan as PDF…", #selector(saveScanPDF), "p", [.command, .shift])
         add(capMenu, "Clear Scan", #selector(clearScan))
+        capMenu.addItem(.separator())
+        autoEnhanceItem = add(capMenu, "Auto-Crop & Enhance", #selector(toggleAutoEnhance))
+        autoEnhanceItem?.state = scanAutoEnhance ? .on : .off
+        let modeItem = NSMenuItem(title: "Scan Look", action: nil, keyEquivalent: "")
+        let modeMenu = NSMenu(title: "Scan Look")
+        for (nm, m) in [("Color", ScanMode.color), ("Grayscale", .gray), ("Black & White", .bw)] {
+            let it = add(modeMenu, nm, #selector(setScanMode(_:)))
+            it.representedObject = m.rawValue
+            it.state = (m == scanMode) ? .on : .off
+            scanModeItems.append(it)
+        }
+        modeItem.submenu = modeMenu
+        capMenu.addItem(modeItem)
+        capMenu.addItem(.separator())
+        recordItem = add(capMenu, "Start Recording", #selector(toggleRecording), "r", [.command, .option])
         capItem.submenu = capMenu
 
         let annItem = NSMenuItem(); main.addItem(annItem)
@@ -1223,6 +1912,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         add(annMenu, "Clear Annotations", #selector(clearAnnotations))
         annItem.submenu = annMenu
 
+        let helpItem = NSMenuItem(); main.addItem(helpItem)
+        let helpMenu = NSMenu(title: "Help")
+        add(helpMenu, "Your First Lesson…", #selector(showGettingStarted))
+        add(helpMenu, "Share Feedback…", #selector(shareFeedback))
+        helpItem.submenu = helpMenu
         NSApp.mainMenu = main
         rebuildCameraMenu()
     }
@@ -1359,6 +2053,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             let devices = self.availableCameras()
             if let device = devices.first(where: { $0.uniqueID == saved }) ?? self.preferredDefault(devices) {
                 self.applyDeviceLocked(device)          // already on sessionQueue
+                DispatchQueue.main.async { self.autoStartRecordingIfNeeded() }
             } else {
                 DispatchQueue.main.async {
                     self.preview.showMessage("No camera found.\n\nPlug in a document camera — or use your iPhone/iPad: hold it near this Mac (same Apple ID, Wi‑Fi + Bluetooth on) and it appears in the Camera menu.")
@@ -1376,7 +2071,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     /// MUST run on sessionQueue. Validates the new input BEFORE tearing down the old one,
     /// so a failed switch never leaves the session with no input (silent black screen).
-    private func applyDeviceLocked(_ device: AVCaptureDevice) {
+    private func applyDeviceLocked(_ device: AVCaptureDevice, preset: ClassroomPreset? = nil) {
         let newInput: AVCaptureDeviceInput
         do {
             newInput = try AVCaptureDeviceInput(device: device)
@@ -1398,6 +2093,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 self.activeDeviceID = device.uniqueID
                 self.preview.resetZoom()
                 self.preview.showMessage(nil)
+                if let preset { self.applyPresetView(preset) }
                 self.rebuildCameraMenu()
             }
         } else {
@@ -1418,11 +2114,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                        from connection: AVCaptureConnection) {
         // Only convert a frame when something needs it — never hold a pool buffer.
         bufferLock.lock()
+        let firstFrame = !firstFrameObserved; firstFrameObserved = true
         let doFreeze = pendingFreeze; if doFreeze { pendingFreeze = false }
         let doSave = pendingSnapshotSave; if doSave { pendingSnapshotSave = false }
         let doCopy = pendingSnapshotCopy; if doCopy { pendingSnapshotCopy = false }
         let doAddPage = pendingAddPage; if doAddPage { pendingAddPage = false }
         bufferLock.unlock()
+        if firstFrame { DispatchQueue.main.async { GettingStarted.shared.record(camera: true) } }
         guard doFreeze || doSave || doCopy || doAddPage,
               let pb = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let ci = CIImage(cvPixelBuffer: pb)
@@ -1530,7 +2228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                       let tiff = nsImage.tiffRepresentation,
                       let rep = NSBitmapImageRep(data: tiff),
                       let png = rep.representation(using: .png, properties: [:]) else { return }
-                do { try png.write(to: url) } catch { self.flashToast("Couldn’t save the image") }
+                do { try png.write(to: url); GettingStarted.shared.record(saved: true) } catch { self.flashToast("Couldn’t save the image") }
             }
         } else {
             NSPasteboard.general.clearContents()
@@ -1567,7 +2265,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         else { bufferLock.lock(); pendingAddPage = true; bufferLock.unlock() }
     }
     private func appendScanPage(_ cg: CGImage) {
-        scanPages.append(orientedSnapshot(cg))
+        let oriented = orientedSnapshot(cg)             // bake rotation/flip first (matches the screen)
+        guard scanAutoEnhance else {
+            DispatchQueue.main.async { self.finishScanPage(oriented) }
+            return
+        }
+        let mode = scanMode
+        scanQueue.async {                               // Vision + Core Image off the capture/main thread
+            let cleaned = DocScanner.clean(oriented, mode: mode) ?? oriented
+            DispatchQueue.main.async { self.finishScanPage(cleaned) }
+        }
+    }
+    private func finishScanPage(_ cg: CGImage) {        // always on main; scanPages is main-thread
+        scanPages.append(cg)
         preview.scanCount = scanPages.count
         flashToast("Added page \(scanPages.count)")
     }
@@ -1586,6 +2296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 if let page = PDFPage(image: img) { doc.insert(page, at: doc.pageCount) }
             }
             if !doc.write(to: url) { self.flashToast("Couldn’t save the PDF") }
+            else { GettingStarted.shared.record(saved: true) }
         }
     }
     @objc private func clearScan() {
@@ -1593,6 +2304,251 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         preview.scanCount = 0
         flashToast("Scan cleared")
     }
+    @objc private func toggleAutoEnhance() {
+        scanAutoEnhance.toggle()
+        UserDefaults.standard.set(scanAutoEnhance, forKey: "scanAutoEnhance")
+        autoEnhanceItem?.state = scanAutoEnhance ? .on : .off
+        flashToast(scanAutoEnhance ? "Auto-crop & enhance on" : "Auto-crop & enhance off")
+    }
+    @objc private func setScanMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? Int, let m = ScanMode(rawValue: raw) else { return }
+        scanMode = m
+        UserDefaults.standard.set(raw, forKey: "scanMode")
+        for it in scanModeItems { it.state = (it === sender) ? .on : .off }
+        flashToast("Scan look: \(sender.title)")
+    }
+
+    // MARK: Record — camera + mic to a .mov, then save/share
+
+    @objc private func toggleRecording() {
+        if isRecording { stopRecording() } else { startRecording() }
+    }
+    private func startRecording() {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("DocuCam \(snapshotStamp).mov")
+        sessionQueue.async {
+            self.session.beginConfiguration()
+            if self.micInput == nil, let mic = AVCaptureDevice.default(for: .audio),
+               let inp = try? AVCaptureDeviceInput(device: mic), self.session.canAddInput(inp) {
+                self.session.addInput(inp); self.micInput = inp
+            }
+            if !self.movieOutputAdded, self.session.canAddOutput(self.movieOutput) {
+                self.session.addOutput(self.movieOutput); self.movieOutputAdded = true
+            }
+            self.session.commitConfiguration()
+            guard self.movieOutputAdded, self.movieOutput.connection(with: .video) != nil else {
+                DispatchQueue.main.async { self.flashToast("Can’t record — no camera") }
+                return
+            }
+            self.movieOutput.startRecording(to: url, recordingDelegate: self)
+        }
+    }
+    private func stopRecording() {
+        sessionQueue.async { if self.movieOutput.isRecording { self.movieOutput.stopRecording() } }
+    }
+    func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL,
+                    from connections: [AVCaptureConnection]) {
+        DispatchQueue.main.async {
+            self.isRecording = true
+            self.recordItem?.title = "Stop Recording"
+            self.preview.recording = true
+            self.preventIdleSleep()
+            self.flashToast("Recording…")
+        }
+    }
+    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL,
+                    from connections: [AVCaptureConnection], error: Error?) {
+        DispatchQueue.main.async {
+            self.isRecording = false
+            self.recordItem?.title = "Start Recording"
+            self.preview.recording = false
+            self.allowIdleSleep()
+            // AVFoundation reports a non-nil error even on a normal stop if the movie is still
+            // usable; only bail when the file didn't actually get written.
+            let ok = FileManager.default.fileExists(atPath: outputFileURL.path)
+            if !ok { self.flashToast("Recording failed"); return }
+            self.presentRecording(outputFileURL)
+        }
+    }
+    // Finished recordings drop straight into the chosen folder (default ~/Downloads) — no
+    // save panel, so a classroom recording doesn't block on a dialog. The recording was
+    // captured to a local temp file and only moved here on finish, so a network share never
+    // sees a half-written file. If the folder is unreachable (share unmounted, sandbox lost
+    // access), fall back to letting the user pick a spot.
+    private func presentRecording(_ url: URL) {
+        let fm = FileManager.default
+        let (folder, scoped) = resolveRecordFolder()
+        defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
+
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: folder.path, isDirectory: &isDir), isDir.boolValue else {
+            presentRecordingSavePanel(url); return
+        }
+        let dest = uniqueURL(folder.appendingPathComponent(url.lastPathComponent))
+        do {
+            try fm.moveItem(at: url, to: dest)
+            GettingStarted.shared.record(saved: true)
+            flashToast("Saved to \(folder.lastPathComponent)")
+        } catch {
+            presentRecordingSavePanel(url)
+        }
+    }
+    /// The folder finished recordings go to, plus whether a security scope was started
+    /// (the caller must stop it when done). Falls back to ~/Downloads.
+    private func resolveRecordFolder() -> (url: URL, scoped: Bool) {
+        let fm = FileManager.default
+        if let data = Settings.recordFolderBookmark {
+            var stale = false
+            if let url = try? URL(resolvingBookmarkData: data, options: Settings.bookmarkResolveOptions,
+                                  relativeTo: nil, bookmarkDataIsStale: &stale) {
+                let scoped = url.startAccessingSecurityScopedResource()
+                if stale, let fresh = try? url.bookmarkData(options: Settings.bookmarkCreateOptions,
+                                                            includingResourceValuesForKeys: nil, relativeTo: nil) {
+                    Settings.recordFolderBookmark = fresh
+                }
+                return (url, scoped)
+            }
+        }
+        let downloads = (try? fm.url(for: .downloadsDirectory, in: .userDomainMask,
+                                     appropriateFor: nil, create: true))
+            ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
+        return (downloads, false)
+    }
+    /// Kick off recording automatically once per launch when the camera is live.
+    private func autoStartRecordingIfNeeded() {
+        guard Settings.autoStartRecording, !didAutoStart, !isRecording else { return }
+        didAutoStart = true
+        // Give the freshly-started session a beat to settle before capturing.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard !self.isRecording else { return }
+            self.startRecording()
+        }
+    }
+    private func presentRecordingSavePanel(_ url: URL) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.quickTimeMovie]
+        panel.nameFieldStringValue = url.lastPathComponent
+        panel.canCreateDirectories = true
+        panel.begin { resp in
+            guard resp == .OK, let dest = panel.url else { try? FileManager.default.removeItem(at: url); return }
+            try? FileManager.default.removeItem(at: dest)
+            do { try FileManager.default.moveItem(at: url, to: dest); GettingStarted.shared.record(saved: true); self.flashToast("Saved recording") }
+            catch { self.flashToast("Couldn’t save recording") }
+        }
+    }
+    // Append " 2", " 3", … before the extension if the name is already taken.
+    private func uniqueURL(_ url: URL) -> URL {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: url.path) else { return url }
+        let dir = url.deletingLastPathComponent()
+        let base = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension
+        var n = 2
+        while true {
+            let candidate = dir.appendingPathComponent(ext.isEmpty ? "\(base) \(n)" : "\(base) \(n).\(ext)")
+            if !fm.fileExists(atPath: candidate.path) { return candidate }
+            n += 1
+        }
+    }
+
+    // MARK: Stay awake while recording (main thread)
+
+    private func preventIdleSleep() {
+        guard !sleepAssertionActive else { return }
+        let ok = IOPMAssertionCreateWithName(
+            kIOPMAssertPreventUserIdleSystemSleep as CFString,
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            "BlueBird DocuCam is recording" as CFString,
+            &sleepAssertionID)
+        sleepAssertionActive = (ok == kIOReturnSuccess)
+    }
+    private func allowIdleSleep() {
+        guard sleepAssertionActive else { return }
+        IOPMAssertionRelease(sleepAssertionID)
+        sleepAssertionActive = false
+    }
+
+    // MARK: First lesson / classroom presets
+
+    private var presets: [ClassroomPreset] {
+        get { UserDefaults.standard.data(forKey: "classroomPresets").flatMap { try? JSONDecoder().decode([ClassroomPreset].self, from: $0) } ?? [] }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: "classroomPresets"); rebuildPresetMenu() }
+    }
+    private func rebuildPresetMenu() {
+        guard let menu = presetMenu else { return }
+        menu.removeAllItems()
+        add(menu, "Save Current Setup…", #selector(saveClassroomPreset))
+        if !presets.isEmpty {
+            menu.addItem(.separator())
+            for (i,p) in presets.enumerated() { let item = add(menu, p.name, #selector(applyClassroomPreset(_:))); item.tag = i }
+            menu.addItem(.separator()); add(menu, "Delete a Preset…", #selector(deleteClassroomPreset))
+        }
+    }
+    @objc private func saveClassroomPreset() {
+        guard let camera = activeDeviceID else { flashToast("Connect a camera before saving a preset"); return }
+        let a = NSAlert(); a.messageText = "Save classroom setup"; a.informativeText = "Remember this camera, rotation, flips, fit/fill, zoom and pan. Recording and full-screen mode are not changed by presets."
+        let name = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24)); name.placeholderString = "For example: Period 1 — math"
+        a.accessoryView = name; a.addButton(withTitle: "Save"); a.addButton(withTitle: "Cancel")
+        a.window.initialFirstResponder = name
+        guard a.runModal() == .alertFirstButtonReturn else { return }
+        let title = String(name.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        guard !title.isEmpty else { return }
+        var list = presets
+        let preset = ClassroomPreset(name: title, cameraID: camera, rotation: preview.rotation, flipH: preview.flipH, flipV: preview.flipV, fill: preview.fill, zoom: Double(preview.zoom), panX: Double(preview.panOffset.x / max(1,preview.bounds.width)), panY: Double(preview.panOffset.y / max(1,preview.bounds.height)))
+        if let i = list.firstIndex(where: { $0.name.caseInsensitiveCompare(title) == .orderedSame }) {
+            let confirm = NSAlert(); confirm.messageText = "Replace “\(list[i].name)”?"; confirm.addButton(withTitle: "Replace"); confirm.addButton(withTitle: "Cancel")
+            guard confirm.runModal() == .alertFirstButtonReturn else { return }; list[i] = preset
+        } else { list.append(preset) }
+        presets = list; flashToast("Saved classroom preset")
+    }
+    @objc private func applyClassroomPreset(_ sender: NSMenuItem) {
+        let list = presets; guard list.indices.contains(sender.tag) else { return }
+        guard !isRecording else { flashToast("Stop recording before switching classroom setups"); return }
+        let p = list[sender.tag]
+        guard let device = availableCameras().first(where: { $0.uniqueID == p.cameraID }) else {
+            let a = NSAlert(); a.messageText = "Preset camera is unavailable"; a.informativeText = "Connect the camera for “\(p.name)”, then try again. Your current setup has been kept."; a.runModal(); return
+        }
+        if activeDeviceID == device.uniqueID { applyPresetView(p) }
+        else { sessionQueue.async { self.applyDeviceLocked(device, preset: p) } }
+    }
+    private func applyPresetView(_ p: ClassroomPreset) {
+        preview.rotation = [0,90,180,270].contains(p.rotation) ? p.rotation : 0
+        preview.flipH = p.flipH; preview.flipV = p.flipV; preview.fill = p.fill
+        preview.zoom = CGFloat(p.safeZoom)
+        preview.panOffset = CGPoint(x: CGFloat(p.safePan(p.panX)) * preview.bounds.width, y: CGFloat(p.safePan(p.panY)) * preview.bounds.height)
+        let d = UserDefaults.standard
+        d.set(preview.rotation, forKey: kRotation); d.set(p.flipH, forKey: kFlipH); d.set(p.flipV, forKey: kFlipV); d.set(p.fill, forKey: kFill)
+        syncViewMenu(); flashToast("Applied \(p.name)")
+    }
+    @objc private func deleteClassroomPreset() {
+        var list = presets; guard !list.isEmpty else { return }
+        let a = NSAlert(); a.messageText = "Delete a classroom preset"; a.informativeText = "This removes the saved setup, not any scans or recordings."
+        let choices = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 300, height: 28)); choices.addItems(withTitles: list.map(\.name)); a.accessoryView = choices
+        a.addButton(withTitle: "Delete"); a.addButton(withTitle: "Cancel")
+        guard a.runModal() == .alertFirstButtonReturn, list.indices.contains(choices.indexOfSelectedItem) else { return }
+        list.remove(at: choices.indexOfSelectedItem); presets = list
+    }
+    private func showGettingStartedIfNeeded() {
+        guard !Settings.startMinimized, !Settings.startFullScreen, !UserDefaults.standard.bool(forKey: "gettingStartedSeen") else { return }
+        showGettingStarted()
+    }
+    @objc private func showGettingStarted() {
+#if APP_STORE
+        guard Store.shared.isUnlocked else { Paywall.shared.show(); return }
+#endif
+        GettingStarted.shared.show(actions: [
+            { [weak self] in guard let self else { return }; self.rebuildCameraMenu(); self.cameraMenu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil) },
+            { [weak self] in guard let self else { return }; self.showMainWindow(); if !self.window.styleMask.contains(.fullScreen) { self.window.toggleFullScreen(nil) } },
+            { [weak self] in self?.addScanPage() },
+            { [weak self] in self?.saveScanPDF() }
+        ])
+    }
+    @objc private func shareFeedback() { FeedbackWindow.shared.show() }
+    func windowDidEnterFullScreen(_ notification: Notification) { if (notification.object as? NSWindow) === window { GettingStarted.shared.record(presentation: true) } }
+#if APP_STORE
+    @objc private func showSubscription() { SubscriptionWindow.shared.show(); Task { await Store.shared.loadProducts(); await Store.shared.refresh() } }
+    func applicationDidBecomeActive(_ notification: Notification) { if hasLaunched { Task { await Store.shared.refresh() } } }
+#endif
 
     // MARK: Annotation
 
@@ -1628,6 +2584,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     @objc private func checkForUpdates() { Updater.check(userInitiated: true) }
     @objc private func openKofi() { if let u = URL(string: kofiURL) { NSWorkspace.shared.open(u) } }
 #endif
+}
+
+// MARK: - Batch scan cleanup (auto-crop / deskew / scanner enhance)
+
+enum ScanMode: Int { case color = 0, gray = 1, bw = 2 }
+
+/// Turns a raw captured page into a scanner-style page: detects the document edges,
+/// flattens perspective (deskew), and enhances contrast. Pure + thread-safe — call off
+/// the main thread. Returns nil only if Core Image can't render; callers fall back to raw.
+enum DocScanner {
+    private static let ctx = CIContext()
+
+    static func clean(_ cg: CGImage, mode: ScanMode) -> CGImage? {
+        var ci = CIImage(cgImage: cg)
+        if let flat = detectAndFlatten(ci) { ci = flat }
+        ci = enhance(ci, mode: mode)
+        return ctx.createCGImage(ci, from: ci.extent)
+    }
+
+    private static func detectAndFlatten(_ ci: CIImage) -> CIImage? {
+        let req = VNDetectDocumentSegmentationRequest()
+        let handler = VNImageRequestHandler(ciImage: ci, options: [:])
+        guard (try? handler.perform([req])) != nil,
+              let obs = req.results?.first else { return nil }
+        let w = ci.extent.width, h = ci.extent.height
+        func px(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x * w, y: p.y * h) }   // normalized (bottom-left origin) → pixels
+        let tl = px(obs.topLeft), tr = px(obs.topRight), br = px(obs.bottomRight), bl = px(obs.bottomLeft)
+        // Skip degenerate or near-full-frame detections that would just warp the image.
+        let frame = w * h
+        guard frame > 0 else { return nil }
+        let ratio = quadArea(tl, tr, br, bl) / frame
+        guard ratio > 0.15, ratio < 0.999 else { return nil }
+        return ci.applyingFilter("CIPerspectiveCorrection", parameters: [
+            "inputTopLeft": CIVector(cgPoint: tl), "inputTopRight": CIVector(cgPoint: tr),
+            "inputBottomRight": CIVector(cgPoint: br), "inputBottomLeft": CIVector(cgPoint: bl)])
+    }
+
+    private static func enhance(_ ci: CIImage, mode: ScanMode) -> CIImage {
+        switch mode {
+        case .color:
+            return ci.applyingFilter("CIColorControls",
+                parameters: [kCIInputContrastKey: 1.06, kCIInputSaturationKey: 1.06])
+        case .gray:
+            return ci.applyingFilter("CIColorControls",
+                parameters: [kCIInputSaturationKey: 0.0, kCIInputContrastKey: 1.14])
+        case .bw:                                      // whiten paper, darken ink — photocopier look
+            return ci.applyingFilter("CIColorControls",
+                parameters: [kCIInputSaturationKey: 0.0, kCIInputContrastKey: 1.55, kCIInputBrightnessKey: 0.14])
+        }
+    }
+
+    // Shoelace area over the 4 corners in tl,tr,br,bl order.
+    private static func quadArea(_ a: CGPoint, _ b: CGPoint, _ c: CGPoint, _ d: CGPoint) -> CGFloat {
+        let s = (a.x*b.y - b.x*a.y) + (b.x*c.y - c.x*b.y) + (c.x*d.y - d.x*c.y) + (d.x*a.y - a.x*d.y)
+        return abs(s) / 2
+    }
 }
 
 let app = NSApplication.shared

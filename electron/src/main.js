@@ -22,6 +22,25 @@ function saveSettings() { try { fs.writeFileSync(SETTINGS_PATH, JSON.stringify(s
 function getSetting(k, d) { return settings[k] === undefined ? d : settings[k] }
 function setSetting(k, v) { settings[k] = v; saveSettings() }
 
+let checkingIn = false
+async function checkIn() {
+  if (settings.participatesInInstallCount === false || checkingIn) return
+  const elapsed = Date.now() - settings.installCountLastSuccess
+  if (elapsed >= 0 && elapsed < 86400000) return
+  checkingIn = true
+  try {
+    if (!settings.installCountID) setSetting('installCountID', require('crypto').randomUUID())
+    const response = await fetch('https://docucam-install-count.taylor-c24.workers.dev/v1/check-in', {
+      method: 'POST', body: settings.installCountID, signal: AbortSignal.timeout(15000),
+    })
+    if (response.status === 204) setSetting('installCountLastSuccess', Date.now())
+  } catch {
+    // Offline classrooms can report on a later launch or timer tick.
+  } finally {
+    checkingIn = false
+  }
+}
+
 let mainWindow = null
 let aboutWindow = null
 let settingsWindow = null
@@ -179,13 +198,13 @@ function childWindow(file, w, h) {
 
 function showAbout() {
   if (aboutWindow) { aboutWindow.show(); aboutWindow.focus(); return }
-  aboutWindow = childWindow('about.html', 380, 470)
+  aboutWindow = childWindow('about.html', 380, 510)
   aboutWindow.on('closed', () => { aboutWindow = null })
 }
 
 function showSettings() {
   if (settingsWindow) { settingsWindow.show(); settingsWindow.focus(); return }
-  settingsWindow = childWindow('settings.html', 460, 340)
+  settingsWindow = childWindow('settings.html', 460, 430)
   settingsWindow.on('closed', () => { settingsWindow = null })
 }
 
@@ -237,12 +256,13 @@ function info(message, detail) {
 ipcMain.handle('settings:all', () => settings)
 ipcMain.handle('settings:set', (_e, k, v) => {
   setSetting(k, v)
+  if (k === 'participatesInInstallCount') checkIn()
   if (k === 'hidePointerFullScreen') send('setting-hidepointer', v)   // apply live in the viewer
   return true
 })
 ipcMain.handle('app:info', () => ({
   name: APP_NAME, version: app.getVersion(), copyright: '© 2026 Taylor Emery — ETS3D LLC',
-  repoURL: REPO_URL, kofiURL: KOFI_URL, platform: process.platform,
+  kofiURL: KOFI_URL, platform: process.platform,
 }))
 ipcMain.handle('login-item:get', () => {
   try { return app.getLoginItemSettings().openAtLogin } catch { return false }
@@ -281,6 +301,8 @@ if (!gotLock) {
     if (process.platform === 'darwin') {
       try { await systemPreferences.askForMediaAccess('camera') } catch {}
     }
+    checkIn()
+    setInterval(checkIn, 3600000).unref()
     createMainWindow()
     buildMenu()
     buildTray()

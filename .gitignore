@@ -18,3 +18,9 @@ electron/dist/
 
 .env
 .DS_Store
+
+# Local verification binaries, UI previews and private App Store inspection snapshots
+/build-local/
+
+/install-count/.wrangler/
+/install-count/node_modules/

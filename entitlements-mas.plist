@@ -6,10 +6,17 @@
     <key>com.apple.security.app-sandbox</key><true/>
     <!-- Camera (document camera / Continuity Camera). -->
     <key>com.apple.security.device.camera</key><true/>
+    <!-- Microphone — narration while recording the document camera. -->
+    <key>com.apple.security.device.audio-input</key><true/>
     <!-- StoreKit needs outbound network. -->
     <key>com.apple.security.network.client</key><true/>
     <!-- Save snapshots / PDFs to a user-chosen location via the save panel. -->
     <key>com.apple.security.files.user-selected.read-write</key><true/>
+    <!-- Drop finished recordings straight into ~/Downloads without a save panel. -->
+    <key>com.apple.security.files.downloads.read-write</key><true/>
+    <!-- Remember a user-chosen recording folder (incl. a mounted network share) across
+         launches via a security-scoped bookmark. -->
+    <key>com.apple.security.files.bookmarks.app-scope</key><true/>
     <!-- Must match the Mac App Store provisioning profile (TeamID.BundleID + TeamID),
          or the upload is flagged 90886 and can't be used with TestFlight. -->
     <key>com.apple.application-identifier</key><string>XK6QP975ZQ.com.emerytech.BlueBirdDocuCam</string>

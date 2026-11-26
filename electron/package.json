@@ -1,11 +1,17 @@
 {
   "name": "bluebird-docucam",
   "productName": "BlueBird DocuCam",
-  "version": "1.1.0",
+  "version": "1.4.1",
   "description": "A simple document-camera viewer for the classroom.",
-  "author": { "name": "Taylor Emery", "email": "taylor@emerytechsolutions.com" },
+  "author": {
+    "name": "Taylor Emery",
+    "email": "taylor@emerytechsolutions.com"
+  },
   "homepage": "https://github.com/emerytech/bluebird-docucam",
-  "repository": { "type": "git", "url": "https://github.com/emerytech/bluebird-docucam.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/emerytech/bluebird-docucam.git"
+  },
   "license": "MIT",
   "main": "src/main.js",
   "scripts": {
@@ -20,10 +26,18 @@
   "build": {
     "appId": "com.emerytech.BlueBirdDocuCam",
     "productName": "BlueBird DocuCam",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["src/**/*", "package.json"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.png"
     },
     "nsis": {
@@ -35,7 +49,10 @@
       "uninstallDisplayName": "BlueBird DocuCam"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "build/icon.png",
       "category": "Education",
       "synopsis": "Document-camera viewer",
